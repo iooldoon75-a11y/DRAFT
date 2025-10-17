@@ -1,0 +1,123 @@
+-- Aim Lock (Headshot) with FOV Outline for Delta Executor
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local GuiService = game:GetService("GuiService")
+
+-- ตั้งค่า Aim Lock และ FOV
+local aimLockEnabled = false
+local fovRadius = 100  -- รัศมีวง FOV (พิกเซลบนหน้าจอ)
+local maxDistance = 1000  -- ระยะสูงสุดในเกม (หน่วย)
+
+-- สร้าง UI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Parent = game.CoreGui
+ScreenGui.Name = "AimLockUI"
+ScreenGui.ResetOnSpawn = false
+
+-- UI Frame (ลากได้)
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 80, 0, 30)  -- ขนาดเล็กสำหรับมือถือ
+Frame.Position = UDim2.new(0.5, -40, 0.8, -15)  -- ตรงกลางด้านล่าง
+Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Frame.BorderSizePixel = 1
+Frame.Active = true
+Frame.Draggable = true
+Frame.Parent = ScreenGui
+
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Size = UDim2.new(1, 0, 1, 0)
+ToggleButton.Text = "Aim Lock: OFF"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.BackgroundTransparency = 1
+ToggleButton.Font = Enum.Font.SourceSansBold
+ToggleButton.TextSize = 14
+ToggleButton.Parent = Frame
+
+-- สร้างวง FOV (Outline)
+local FovCircle = Instance.new("Frame")
+FovCircle.Size = UDim2.new(0, fovRadius * 2, 0, fovRadius * 2)
+FovCircle.Position = UDim2.new(0.5, -fovRadius, 0.5, -fovRadius)
+FovCircle.BackgroundTransparency = 1  -- วงโปร่งใส
+FovCircle.BorderSizePixel = 2
+FovCircle.BorderColor3 = Color3.fromRGB(255, 255, 255)  -- เส้นสีขาว
+FovCircle.Parent = ScreenGui
+FovCircle.Visible = false  -- ซ่อนเมื่อปิด Aim Lock
+
+-- ทำให้วง FOV เป็นวงกลม
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(1, 0)
+UICorner.Parent = FovCircle
+
+-- ฟังก์ชันตรวจสอบว่าเป้าอยู่ใน FOV หรือไม่
+local function isInFOV(target)
+    if not target or not target.Character or not target.Character:FindFirstChild("Head") then return false end
+    local screenPoint, onScreen = Camera:WorldToScreenPoint(target.Character.Head.Position)
+    if not onScreen then return false end
+    local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    local targetPoint = Vector2.new(screenPoint.X, screenPoint.Y)
+    local distance = (screenCenter - targetPoint).Magnitude
+    return distance <= fovRadius
+end
+
+-- ฟังก์ชันหาผู้เล่นที่ใกล้ที่สุดใน FOV
+local function getNearestPlayerInFOV()
+    local nearestPlayer = nil
+    local nearestDistance = maxDistance
+    local localCharacter = LocalPlayer.Character
+    if not localCharacter or not localCharacter:FindFirstChild("HumanoidRootPart") then return nil end
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+            local distance = (player.Character.HumanoidRootPart.Position - localCharacter.HumanoidRootPart.Position).Magnitude
+            if distance < nearestDistance and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 and isInFOV(player) then
+                nearestPlayer = player
+                nearestDistance = distance
+            end
+        end
+    end
+    return nearestPlayer
+end
+
+-- ฟังก์ชันล็อกเป้า (ล็อกที่หัว, ทันที)
+local function aimAt(target)
+    if not target or not target.Character or not target.Character:FindFirstChild("Head") then return end
+    local targetPos = target.Character.Head.Position
+    Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPos)  -- ล็อกทันที
+end
+
+-- Toggle Aim Lock
+ToggleButton.MouseButton1Click:Connect(function()
+    aimLockEnabled = not aimLockEnabled
+    ToggleButton.Text = "Aim Lock: " .. (aimLockEnabled and "ON" or "OFF")
+    ToggleButton.TextColor3 = aimLockEnabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 255, 255)
+    FovCircle.Visible = aimLockEnabled  -- แสดง/ซ่อนวง FOV
+    print("Aim Lock " .. (aimLockEnabled and "Enabled" or "Disabled"))
+end)
+
+-- รัน Aim Lock
+RunService.RenderStepped:Connect(function()
+    if not aimLockEnabled then return end
+    local success, result = pcall(function()
+        local nearestPlayer = getNearestPlayerInFOV()
+        if nearestPlayer then
+            aimAt(nearestPlayer)
+        end
+    end)
+    if not success then
+        local errorLabel = Instance.new("TextLabel")
+        errorLabel.Size = UDim2.new(0, 200, 0, 50)
+        errorLabel.Position = UDim2.new(0.5, -100, 0.5, -25)
+        errorLabel.Text = "Error: " .. result
+        errorLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+        errorLabel.BackgroundTransparency = 1
+        errorLabel.Parent = ScreenGui
+        game:GetService("TweenService"):Create(errorLabel, TweenInfo.new(3), {TextTransparency = 1}):Play()
+        wait(3)
+        errorLabel:Destroy()
+    end
+end)
+
+print("Aim Lock (Headshot) with FOV Outline Loaded! Tap the button to toggle.")
