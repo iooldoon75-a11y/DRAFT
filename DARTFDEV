@@ -1,0 +1,112 @@
+-- Body Collapse to Legs + GUI สำหรับ Delta Executor
+-- คลิกปุ่ม = เปิด/ปิด | คนอื่นเห็น 100%
+
+local player = game.Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+
+-- สร้าง GUI
+local screenGui = Instance.new("ScreenGui")
+local frame = Instance.new("Frame")
+local title = Instance.new("TextLabel")
+local toggleButton = Instance.new("TextButton")
+
+screenGui.Name = "BodyCollapseGUI"
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- Frame หลัก
+frame.Parent = screenGui
+frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+frame.BorderSizePixel = 0
+frame.Position = UDim2.new(0, 10, 0, 10)
+frame.Size = UDim2.new(0, 200, 0, 80)
+frame.Active = true
+frame.Draggable = true
+
+-- Title
+title.Parent = frame
+title.BackgroundTransparency = 1
+title.Size = UDim2.new(1, 0, 0, 30)
+title.Font = Enum.Font.SourceSansBold
+title.Text = "หัวตัวแขนรวมขา"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextSize = 16
+
+-- Toggle Button
+toggleButton.Parent = frame
+toggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+toggleButton.BorderSizePixel = 0
+toggleButton.Position = UDim2.new(0, 10, 0, 40)
+toggleButton.Size = UDim2.new(0, 180, 0, 30)
+toggleButton.Font = Enum.Font.SourceSans
+toggleButton.Text = "เปิด"
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.TextSize = 14
+
+-- Corner (โค้งมน)
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 8)
+corner.Parent = frame
+corner.Parent = toggleButton
+
+-- ตัวแปรสถานะ
+local collapsed = false
+
+-- ฟังก์ชันรวมร่างกาย
+local function collapseBody()
+    local character = player.Character
+    if character then
+        for _, part in pairs(character:GetChildren()) do
+            if part.Name == "Head" or 
+               part.Name == "Torso" or 
+               part.Name == "UpperTorso" or
+               part.Name == "LowerTorso" or
+               part.Name:find("Arm") or
+               part.Name:find("Hand") then
+                part.CFrame = character.HumanoidRootPart.CFrame + Vector3.new(0, -3, 0)
+                part.Anchored = true
+                part.CanCollide = false
+            end
+        end
+    end
+end
+
+-- ฟังก์ชันกลับปกติ
+local function restoreBody()
+    local character = player.Character
+    if character then
+        for _, part in pairs(character:GetChildren()) do
+            if part:IsA("BasePart") then
+                part.Anchored = false
+                part.CanCollide = true
+            end
+        end
+    end
+end
+
+-- กดปุ่ม Toggle
+toggleButton.MouseButton1Click:Connect(function()
+    collapsed = not collapsed
+    
+    if collapsed then
+        collapseBody()
+        toggleButton.Text = "ปิด"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+        print("หัวตัวแขนรวมขา: เปิด")
+    else
+        restoreBody()
+        toggleButton.Text = "เปิด"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+        print("หัวตัวแขนรวมขา: ปิด")
+    end
+end)
+
+-- รองรับ Respawn
+player.CharacterAdded:Connect(function()
+    wait(1)
+    if collapsed then
+        collapseBody()
+    end
+end)
+
+print("=== GUI หัวตัวแขนรวมขา LOADED ===")
+print("ลาก GUI ได้ | คลิกปุ่มเปิด/ปิด")
