@@ -1,0 +1,1453 @@
+local script = game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Game"):WaitForChild("ItemTypes"):WaitForChild("Gun")
+-- Decompiler will be improved VERY SOON!
+-- Decompiled with Konstant V2.1, a fast Luau decompiler made in Luau by plusgiant5 (https://discord.gg/brNTY8nX8t)
+-- Decompiled on 2025-10-26 12:35:16
+-- Luau version 6, Types version 3
+-- Time taken: 0.044372 seconds
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Net_upvr = require(game.ReplicatedStorage.Modules.Core.Net)
+local Util_upvr = require(game.ReplicatedStorage.Modules.Core.Util)
+local Char_upvr = require(game.ReplicatedStorage.Modules.Core.Char)
+local State_upvr = require(game.ReplicatedStorage.Modules.Core.State)
+local ShoulderCamera_upvr = require(game.ReplicatedStorage.Modules.Game.ShoulderCamera)
+local Crosshair_upvr = require(ReplicatedStorage.Modules.Game.UI.Crosshair)
+local HitDetection_upvr = require(game.ReplicatedStorage.Modules.Game.HitDetection)
+local module_upvr = {}
+local LocalPlayer_upvr = game.Players.LocalPlayer
+local CurrentCamera_upvr = game.Workspace.CurrentCamera
+local FlagManager = require(game.ReplicatedStorage.Modules.Game.GameInfo.FlagManager)
+module_upvr.FLAG_BULLET_DISTANCE_MUFFLING = FlagManager.FLAG_BULLET_DISTANCE_MUFFLING
+module_upvr.FLAG_AIMBOT = FlagManager.FLAG_AIMBOT
+module_upvr.FLAG_MOBILE_AUTO_AIM_WHEN_SHOOTING = FlagManager.FLAG_MOBILE_AUTO_AIM_WHEN_SHOOTING
+module_upvr.class = require(game.ReplicatedStorage.Modules.Core.StatefulObject).new_class(function() -- Line 49
+	--[[ Upvalues[1]:
+		[1]: State_upvr (readonly)
+	]]
+	return {
+		damage = State_upvr.new(0);
+		explode_damage = State_upvr.new(0);
+		range = State_upvr.new(0);
+		mag = State_upvr.new(0);
+		last_shot = State_upvr.new(0);
+		seed = State_upvr.new(0);
+		durability = State_upvr.new(0);
+		reload_time = State_upvr.new(0);
+		automatic = State_upvr.new(false);
+		fire_rate = State_upvr.new(0);
+		accuracy = State_upvr.new(0);
+	}
+end, script.Name)
+module_upvr.equipped_gun = State_upvr.new(nil)
+function apply_muffling(arg1, arg2) -- Line 72
+	--[[ Upvalues[1]:
+		[1]: module_upvr (readonly)
+	]]
+	if not module_upvr.FLAG_BULLET_DISTANCE_MUFFLING then
+	else
+		arg1.RollOffMaxDistance = 1000
+		local EqualizerSoundEffect = Instance.new("EqualizerSoundEffect")
+		EqualizerSoundEffect.Parent = arg1
+		local math_map_result1 = math.map((game.Workspace.CurrentCamera.CFrame.Position - arg2).Magnitude, 0, 750, 0, 1)
+		EqualizerSoundEffect.LowGain = math.map(math_map_result1, 0, 1, 0, 10)
+		EqualizerSoundEffect.MidGain = math.map(math_map_result1, 0, 1, 0, -20)
+		EqualizerSoundEffect.HighGain = math.map(math_map_result1, 0, 1, 0, -40)
+	end
+end
+function module_upvr.calculate_bullet_direction(arg1, arg2) -- Line 85
+	local random_object = arg1.random_object
+	local var18 = 1 - arg1.states.accuracy.get()
+	return (arg2 * 500 + Vector3.new(random_object:NextNumber(-50, 50) * var18, random_object:NextNumber(-50, 50) * var18, random_object:NextNumber(-50, 50) * var18)).Unit
+end
+local Sparks_upvr = require(game.ReplicatedStorage.Modules.Game.Effects.Sparks)
+local Blood_upvr = require(game.ReplicatedStorage.Modules.Game.Effects.Blood)
+function module_upvr.bullet_hit(arg1, arg2, arg3) -- Line 97
+	--[[ Upvalues[3]:
+		[1]: Sparks_upvr (readonly)
+		[2]: Util_upvr (readonly)
+		[3]: Blood_upvr (readonly)
+	]]
+	local Attachment_5_upvr = Instance.new("Attachment")
+	local _, NONE_11, NONE_7 = script.ImpactParticles:GetChildren()
+	local var53
+	for _, v in var53, NONE_11, NONE_7 do
+		v:Clone().Parent = Attachment_5_upvr
+	end
+	var53 = game.Workspace.Terrain
+	Attachment_5_upvr.Parent = var53
+	var53 = CFrame.lookAt(arg1 + arg2 * 0.01, arg1 + arg2) * CFrame.Angles(0.0017453292519943296, 0, 0)
+	Attachment_5_upvr.WorldCFrame = var53
+	var53 = task.delay
+	var53(5, function() -- Line 104
+		--[[ Upvalues[1]:
+			[1]: Attachment_5_upvr (readonly)
+		]]
+		Attachment_5_upvr:Destroy()
+	end)
+	var53 = nil
+	if arg3 then
+		local class_Model_2 = arg3:FindFirstAncestorWhichIsA("Model")
+		if class_Model_2 then
+			var53 = class_Model_2:FindFirstChildOfClass("Humanoid")
+			if var53 and not game.Players:GetPlayerFromCharacter(var53.Parent) then
+				var53 = nil
+			end
+		end
+	end
+	class_Model_2 = nil
+	local var56 = class_Model_2
+	if arg3 then
+		var56 = arg3:IsDescendantOf(game.Workspace.Vehicles)
+	end
+	if var56 or arg3 and arg3.Parent and arg3.Parent.Parent == workspace.Map.SatelliteDishes then
+		local class_Folder_2 = arg3:FindFirstAncestorWhichIsA("Folder")
+		if class_Folder_2 and class_Folder_2.Name == "Wheels" then
+		else
+			Sparks_upvr.car_hit(arg1, arg2, true)
+			local var58
+		end
+		-- KONSTANTWARNING: GOTO [219] #156
+	end
+	if var53 then
+		local clone_upvr_3 = Attachment_5_upvr.Flesh:Clone()
+		var58 = Util_upvr
+		var58 = 0.95
+		clone_upvr_3.PlaybackSpeed = var58.rand(var58, 1.05)
+		clone_upvr_3.Parent = Attachment_5_upvr
+		clone_upvr_3:Play()
+		clone_upvr_3.Ended:Connect(function() -- Line 138
+			--[[ Upvalues[1]:
+				[1]: clone_upvr_3 (readonly)
+			]]
+			clone_upvr_3:Destroy()
+		end)
+		if Util_upvr.rand(0, 1) < 0.5 then
+			var58 = "Groan"
+		else
+			var58 = "Groan2"
+		end
+		local clone_3_upvr = Attachment_5_upvr[var58]:Clone()
+		var58 = Util_upvr.rand(0.95, 1.05)
+		clone_3_upvr.PlaybackSpeed = var58
+		clone_3_upvr.Parent = Attachment_5_upvr
+		var58 = clone_3_upvr:Play
+		var58()
+		var58 = clone_3_upvr.Ended
+		var58 = var58:Connect
+		var58(function() -- Line 146
+			--[[ Upvalues[1]:
+				[1]: clone_3_upvr (readonly)
+			]]
+			clone_3_upvr:Destroy()
+		end)
+		var58 = Blood_upvr.apply_blood
+		var58(arg1, arg2)
+	else
+		clone_upvr_3 = Attachment_5_upvr.Wall:Clone()
+		local var63_upvr = clone_upvr_3
+		var58 = Util_upvr
+		clone_3_upvr = var58.rand
+		var58 = 0.8
+		clone_3_upvr = clone_3_upvr(var58, 1)
+		var63_upvr.PlaybackSpeed = clone_3_upvr
+		var63_upvr.Parent = Attachment_5_upvr
+		clone_3_upvr = var63_upvr:Play
+		clone_3_upvr()
+		clone_3_upvr = var63_upvr.Ended
+		clone_3_upvr = clone_3_upvr:Connect
+		clone_3_upvr(function() -- Line 157
+			--[[ Upvalues[1]:
+				[1]: var63_upvr (readonly)
+			]]
+			var63_upvr:Destroy()
+		end)
+		clone_3_upvr = Attachment_5_upvr.Hole:Emit
+		clone_3_upvr(1)
+	end
+	if var56 or var53 then
+		var63_upvr = Attachment_5_upvr.Flare
+		var58 = 1
+		var63_upvr = var63_upvr:Emit
+		var63_upvr(var58)
+		var63_upvr = Attachment_5_upvr.Near
+		var58 = 5
+		var63_upvr = var63_upvr:Emit
+		var63_upvr(var58)
+		var63_upvr = Attachment_5_upvr.Bullet
+		var58 = 1
+		var63_upvr = var63_upvr:Emit
+		var63_upvr(var58)
+		var63_upvr = Attachment_5_upvr.Bullet2
+		var58 = 5
+		var63_upvr = var63_upvr:Emit
+		var63_upvr(var58)
+		var63_upvr = Attachment_5_upvr.Normal
+		var58 = 2
+		var63_upvr = var63_upvr:Emit
+		var63_upvr(var58)
+	else
+		var63_upvr = Attachment_5_upvr.Flare:Emit
+		var63_upvr(1)
+		var63_upvr = Attachment_5_upvr.Far:Emit
+		var63_upvr(10)
+		var63_upvr = Attachment_5_upvr.Near:Emit
+		var63_upvr(10)
+		var63_upvr = Attachment_5_upvr.Bullet:Emit
+		var63_upvr(2)
+		var63_upvr = Attachment_5_upvr.Bullet2:Emit
+		var63_upvr(10)
+		var63_upvr = Attachment_5_upvr.Normal:Emit
+		var63_upvr(3)
+	end
+end
+function shortest_distance(arg1, arg2, arg3) -- Line 181
+	local var65 = arg3 - arg2
+	local var66 = arg2 + var65 * math.clamp(arg1 - arg2:Dot(var65) / var65:Dot(var65), 0, 1)
+	return var66, (var66 - arg1).Magnitude
+end
+local children_3_upvr = script.BulletWhooshes:GetChildren()
+function module_upvr.bullet_trail(arg1, arg2) -- Line 196
+	--[[ Upvalues[3]:
+		[1]: Util_upvr (readonly)
+		[2]: LocalPlayer_upvr (readonly)
+		[3]: children_3_upvr (readonly)
+	]]
+	if arg1 == nil or arg1.Parent == nil then
+	else
+		local Attachment_7 = Instance.new("Attachment")
+		Attachment_7.WorldCFrame = arg1:FindFirstChild("BarrelAttachment", true).WorldCFrame
+		Attachment_7.Parent = game.Workspace.Terrain
+		local Attachment_3 = Instance.new("Attachment")
+		Attachment_3.WorldCFrame = CFrame.new(arg2)
+		Attachment_3.Parent = game.Workspace.Terrain
+		local Beam = Instance.new("Beam")
+		Beam.Parent = game.Workspace
+		Beam.Color = ColorSequence.new(Color3.new(0.9, 0.9, 0.9))
+		Beam.Attachment0 = Attachment_7
+		Beam.Attachment1 = Attachment_3
+		Beam.FaceCamera = true
+		Beam.Width0 = 0.2
+		Beam.Width1 = 0.2
+		Util_upvr.tween(Beam, TweenInfo.new(0.5), {
+			Width0 = 0;
+			Width1 = 0;
+		})
+		game.Debris:AddItem(Attachment_7, 1)
+		game.Debris:AddItem(Attachment_3, 1)
+		game.Debris:AddItem(Beam, 1)
+		if LocalPlayer_upvr.Character then
+			local Head = LocalPlayer_upvr.Character:FindFirstChild("Head")
+			if Head then
+				local shortest_distance_result1_2, shortest_distance_result2_2 = shortest_distance(Head.Position, Attachment_7.WorldCFrame.Position, Attachment_3.WorldCFrame.Position)
+				local Attachment = Instance.new("Attachment")
+				Attachment.Parent = game.Workspace.Terrain
+				Attachment.WorldCFrame = CFrame.new(shortest_distance_result1_2)
+				game.Debris:AddItem(Attachment, 1)
+				local clone_7 = children_3_upvr[math.random(1, #children_3_upvr)]:Clone()
+				clone_7.PlaybackSpeed = Util_upvr.rand(0.95, 1.05)
+				clone_7.TimePosition = 0
+				clone_7.Volume = shortest_distance_result2_2 / 50 * 0.5
+				clone_7.Parent = Attachment
+				clone_7:Play()
+			end
+		end
+	end
+end
+function module_upvr.gunshot(arg1, arg2, arg3, arg4) -- Line 242
+	--[[ Upvalues[2]:
+		[1]: Util_upvr (readonly)
+		[2]: module_upvr (readonly)
+	]]
+	local BarrelAttachment_5 = arg1:FindFirstChild("BarrelAttachment", true)
+	if BarrelAttachment_5 and BarrelAttachment_5:FindFirstChild("Sound") then
+		local clone_6_upvr = BarrelAttachment_5.Sound:Clone()
+		clone_6_upvr.PlaybackSpeed = Util_upvr.rand(0.95, 1.05)
+		clone_6_upvr.RollOffMaxDistance = 500
+		apply_muffling(clone_6_upvr, BarrelAttachment_5.WorldCFrame.Position)
+		clone_6_upvr.TimePosition = 0.01
+		clone_6_upvr.Parent = BarrelAttachment_5
+		clone_6_upvr:Play()
+		clone_6_upvr.Ended:Connect(function() -- Line 254
+			--[[ Upvalues[1]:
+				[1]: clone_6_upvr (readonly)
+			]]
+			clone_6_upvr:Destroy()
+		end)
+		for i_2, v_2 in next, BarrelAttachment_5:GetChildren() do
+			if v_2:IsA("ParticleEmitter") then
+				v_2:Emit(10)
+			end
+		end
+	end
+	clone_6_upvr = arg1:FindFirstChild("PumpSound", true)
+	local var93_upvr = clone_6_upvr
+	if var93_upvr then
+		task.delay(0.2, function() -- Line 266
+			--[[ Upvalues[2]:
+				[1]: var93_upvr (readonly)
+				[2]: Util_upvr (copied, readonly)
+			]]
+			local clone_2_upvr = var93_upvr:Clone()
+			clone_2_upvr.PlaybackSpeed = Util_upvr.rand(0.95, 1.05)
+			clone_2_upvr.TimePosition = 0.01
+			clone_2_upvr.Parent = var93_upvr.Parent
+			clone_2_upvr.Ended:Connect(function() -- Line 271
+				--[[ Upvalues[1]:
+					[1]: clone_2_upvr (readonly)
+				]]
+				clone_2_upvr:Destroy()
+			end)
+			clone_2_upvr:Play()
+		end)
+	end
+	if arg2 and arg3 then
+		i_2 = arg4
+		module_upvr.bullet_hit(arg2, arg3, i_2)
+	end
+	if arg2 then
+		module_upvr.bullet_trail(arg1, arg2)
+	end
+end
+function get_start_pos(arg1) -- Line 286
+	return arg1:FindFirstChild("BarrelAttachment", true).WorldCFrame
+end
+function module_upvr.rocket_shot(arg1, arg2) -- Line 296
+	--[[ Upvalues[4]:
+		[1]: Util_upvr (readonly)
+		[2]: module_upvr (readonly)
+		[3]: CurrentCamera_upvr (readonly)
+		[4]: HitDetection_upvr (readonly)
+	]]
+	local instance_2 = arg1.instance
+	local BarrelAttachment_3 = instance_2:FindFirstChild("BarrelAttachment", true)
+	local var103
+	if BarrelAttachment_3 and BarrelAttachment_3:FindFirstChild("Sound") then
+		local clone_upvr_4 = BarrelAttachment_3.Sound:Clone()
+		clone_upvr_4.PlaybackSpeed = Util_upvr.rand(0.95, 1.05)
+		clone_upvr_4.TimePosition = 0.01
+		clone_upvr_4.Parent = BarrelAttachment_3
+		clone_upvr_4:Play()
+		clone_upvr_4.Ended:Connect(function() -- Line 305
+			--[[ Upvalues[1]:
+				[1]: clone_upvr_4 (readonly)
+			]]
+			clone_upvr_4:Destroy()
+		end)
+		apply_muffling(clone_upvr_4, BarrelAttachment_3.WorldCFrame.Position)
+		for _, v_3 in next, BarrelAttachment_3:GetChildren() do
+			if v_3:IsA("ParticleEmitter") then
+				v_3:Emit(10)
+			end
+		end
+	end
+	if var103 == nil then
+		clone_upvr_4 = module_upvr.calculate_bullet_direction(arg1, CurrentCamera_upvr.CFrame.LookVector)
+		var103 = clone_upvr_4
+	end
+	clone_upvr_4 = get_start_pos(arg1.instance)
+	local var108 = clone_upvr_4
+	local clone_upvr_5 = script.Rocket:Clone()
+	clone_upvr_5.Parent = game.Workspace
+	clone_upvr_5:PivotTo(CFrame.lookAt(var108.Position, var108.Position + var103 * 1))
+	game.Debris:AddItem(clone_upvr_5, 2)
+	local SmokeParticles_2 = clone_upvr_5:FindFirstChild("SmokeParticles", true)
+	if SmokeParticles_2 then
+		SmokeParticles_2.Rate = instance_2:GetAttribute("BulletSpeed") * 5
+	end
+	local LinearVelocity = Instance.new("LinearVelocity")
+	local Attachment_2 = Instance.new("Attachment")
+	Attachment_2.Parent = clone_upvr_5.PrimaryPart
+	LinearVelocity.Attachment0 = Attachment_2
+	LinearVelocity.Parent = clone_upvr_5.PrimaryPart
+	LinearVelocity.VectorVelocity = var103.Unit * arg1.instance:GetAttribute("BulletSpeed")
+	local var114_upvw
+	var114_upvw = HitDetection_upvr.FastTouched(clone_upvr_5.PrimaryPart, function(arg1_2) -- Line 343
+		--[[ Upvalues[3]:
+			[1]: arg1 (readonly)
+			[2]: clone_upvr_5 (readonly)
+			[3]: var114_upvw (read and write)
+		]]
+		local Instance_2 = arg1_2.Instance
+		if not Instance_2:IsDescendantOf(arg1.instance.Parent) and not Instance_2:IsDescendantOf(clone_upvr_5) then
+			var114_upvw:Disconnect()
+			for _, v_4 in clone_upvr_5:GetDescendants() do
+				if v_4:IsA("BasePart") then
+					v_4.Transparency = 1
+				elseif v_4:IsA("ParticleEmitter") then
+					v_4.Enabled = false
+				end
+			end
+			game.Debris:AddItem(clone_upvr_5, 2)
+		end
+	end)
+end
+function module_upvr.firework_shot(arg1, arg2) -- Line 359
+	--[[ Upvalues[4]:
+		[1]: Util_upvr (readonly)
+		[2]: module_upvr (readonly)
+		[3]: CurrentCamera_upvr (readonly)
+		[4]: HitDetection_upvr (readonly)
+	]]
+	local instance_4 = arg1.instance
+	local BarrelAttachment_4 = instance_4:FindFirstChild("BarrelAttachment", true)
+	local var127
+	if BarrelAttachment_4 and BarrelAttachment_4:FindFirstChild("Sound") then
+		for _, v_5 in next, BarrelAttachment_4:GetChildren() do
+			if v_5:IsA("Sound") then
+				local clone_upvw = v_5:Clone()
+				clone_upvw.PlaybackSpeed = Util_upvr.rand(0.95, 1.05)
+				clone_upvw.TimePosition = 0.01
+				clone_upvw.Parent = BarrelAttachment_4
+				clone_upvw:Play()
+				clone_upvw.Ended:Connect(function() -- Line 371
+					--[[ Upvalues[1]:
+						[1]: clone_upvw (readonly)
+					]]
+					clone_upvw:Destroy()
+				end)
+				apply_muffling(clone_upvw, BarrelAttachment_4.WorldCFrame.Position)
+			end
+			clone_upvw = v_5:IsA("ParticleEmitter")
+			if clone_upvw then
+				clone_upvw = v_5:Emit
+				clone_upvw(10)
+			end
+		end
+	end
+	if var127 == nil then
+		var127 = module_upvr.calculate_bullet_direction(arg1, CurrentCamera_upvr.CFrame.LookVector)
+	end
+	local get_start_pos_result1 = get_start_pos(arg1.instance)
+	local clone_4_upvr = script.Firework:Clone()
+	clone_4_upvr.Parent = game.Workspace
+	clone_upvw = get_start_pos_result1.Position
+	clone_4_upvr:PivotTo(CFrame.lookAt(clone_upvw, get_start_pos_result1.Position + var127 * 1))
+	clone_upvw = 2
+	game.Debris:AddItem(clone_4_upvr, clone_upvw)
+	clone_upvw = true
+	local SmokeParticles = clone_4_upvr:FindFirstChild("SmokeParticles", clone_upvw)
+	if SmokeParticles then
+		SmokeParticles.Rate = instance_4:GetAttribute("BulletSpeed") * 10
+	end
+	local LinearVelocity_3 = Instance.new("LinearVelocity")
+	clone_upvw = "Attachment"
+	local any = Instance.new(clone_upvw)
+	clone_upvw = clone_4_upvr.PrimaryPart
+	any.Parent = clone_upvw
+	LinearVelocity_3.Attachment0 = any
+	clone_upvw = clone_4_upvr.PrimaryPart
+	LinearVelocity_3.Parent = clone_upvw
+	clone_upvw = var127.Unit * arg1.instance:GetAttribute("BulletSpeed")
+	LinearVelocity_3.VectorVelocity = clone_upvw
+	clone_upvw = nil
+	clone_upvw = HitDetection_upvr.FastTouched(clone_4_upvr.PrimaryPart, function(arg1_3) -- Line 409
+		--[[ Upvalues[3]:
+			[1]: arg1 (readonly)
+			[2]: clone_4_upvr (readonly)
+			[3]: clone_upvw (read and write)
+		]]
+		local Instance = arg1_3.Instance
+		if not Instance:IsDescendantOf(arg1.instance.Parent) and not Instance:IsDescendantOf(clone_4_upvr) then
+			clone_upvw:Disconnect()
+			for _, v_6 in clone_4_upvr:GetDescendants() do
+				if v_6:IsA("BasePart") then
+					v_6.Transparency = 1
+				elseif v_6:IsA("ParticleEmitter") then
+					v_6.Enabled = false
+				end
+			end
+			game.Debris:AddItem(clone_4_upvr, 2)
+		end
+	end)
+end
+function module_upvr.arrow_shot(arg1, arg2) -- Line 425
+	--[[ Upvalues[4]:
+		[1]: Util_upvr (readonly)
+		[2]: module_upvr (readonly)
+		[3]: CurrentCamera_upvr (readonly)
+		[4]: HitDetection_upvr (readonly)
+	]]
+	local instance = arg1.instance
+	local BarrelAttachment_2 = instance:FindFirstChild("BarrelAttachment", true)
+	local var150
+	if BarrelAttachment_2 and BarrelAttachment_2:FindFirstChild("Sound") then
+		local clone_upvr = BarrelAttachment_2.Sound:Clone()
+		clone_upvr.PlaybackSpeed = Util_upvr.rand(0.95, 1.05)
+		clone_upvr.TimePosition = 0.01
+		clone_upvr.Parent = BarrelAttachment_2
+		clone_upvr:Play()
+		clone_upvr.Ended:Connect(function() -- Line 434
+			--[[ Upvalues[1]:
+				[1]: clone_upvr (readonly)
+			]]
+			clone_upvr:Destroy()
+		end)
+		apply_muffling(clone_upvr, BarrelAttachment_2.WorldCFrame.Position)
+		for _, v_7 in next, BarrelAttachment_2:GetChildren() do
+			if v_7:IsA("ParticleEmitter") then
+				v_7:Emit(10)
+			end
+		end
+	end
+	if var150 == nil then
+		clone_upvr = module_upvr.calculate_bullet_direction(arg1, CurrentCamera_upvr.CFrame.LookVector)
+		var150 = clone_upvr
+	end
+	clone_upvr = get_start_pos(arg1.instance)
+	local var155 = clone_upvr
+	local clone_upvr_2 = script.Arrow:Clone()
+	clone_upvr_2.Parent = game.Workspace
+	clone_upvr_2:PivotTo(CFrame.lookAt(var155.Position, var155.Position + var150 * 1))
+	game.Debris:AddItem(clone_upvr_2, 5)
+	local LinearVelocity_2_upvr = Instance.new("LinearVelocity")
+	local Attachment_9 = Instance.new("Attachment")
+	Attachment_9.Parent = clone_upvr_2.PrimaryPart
+	LinearVelocity_2_upvr.Attachment0 = Attachment_9
+	LinearVelocity_2_upvr.Parent = clone_upvr_2.PrimaryPart
+	local SmokeParticles_3_upvr = clone_upvr_2:FindFirstChild("SmokeParticles", true)
+	if SmokeParticles_3_upvr then
+		SmokeParticles_3_upvr.Rate = instance:GetAttribute("BulletSpeed") * 5
+	end
+	LinearVelocity_2_upvr.VectorVelocity = var150.Unit * arg1.instance:GetAttribute("BulletSpeed")
+	local var161_upvw
+	var161_upvw = HitDetection_upvr.FastTouched(clone_upvr_2.PrimaryPart, function(arg1_4) -- Line 472
+		--[[ Upvalues[6]:
+			[1]: arg1 (readonly)
+			[2]: clone_upvr_2 (readonly)
+			[3]: var161_upvw (read and write)
+			[4]: LinearVelocity_2_upvr (readonly)
+			[5]: SmokeParticles_3_upvr (readonly)
+			[6]: Util_upvr (copied, readonly)
+		]]
+		local Instance_3_upvr = arg1_4.Instance
+		if not Instance_3_upvr:IsDescendantOf(arg1.instance.Parent) and not Instance_3_upvr:IsDescendantOf(clone_upvr_2) then
+			if Instance_3_upvr.Transparency == 1 and not Instance_3_upvr:IsDescendantOf(game.Workspace.Vehicles) then return end
+			if Instance_3_upvr:IsDescendantOf(game.Workspace.Vehicles) and Instance_3_upvr.CanCollide == false then return end
+			var161_upvw:Disconnect()
+			LinearVelocity_2_upvr.Enabled = false
+			SmokeParticles_3_upvr.Rate = 0
+			clone_upvr_2.PrimaryPart.CFrame = CFrame.new(arg1_4.Position) * clone_upvr_2.PrimaryPart.CFrame.Rotation
+			Util_upvr.weld(Instance_3_upvr, clone_upvr_2.PrimaryPart)
+			local any_watch_property_result1_upvr = Util_upvr.watch_property(Instance_3_upvr, "Transparency", function(arg1_5) -- Line 482
+				--[[ Upvalues[2]:
+					[1]: Instance_3_upvr (readonly)
+					[2]: clone_upvr_2 (copied, readonly)
+				]]
+				if arg1_5 == 1 and not Instance_3_upvr:IsDescendantOf(game.Workspace.Vehicles) then
+					clone_upvr_2:Destroy()
+				end
+			end)
+			clone_upvr_2.Destroying:Connect(function() -- Line 487
+				--[[ Upvalues[1]:
+					[1]: any_watch_property_result1_upvr (readonly)
+				]]
+				any_watch_property_result1_upvr:Disconnect()
+			end)
+		end
+	end)
+end
+function module_upvr.apply_recoil(arg1) -- Line 494
+	--[[ Upvalues[2]:
+		[1]: Crosshair_upvr (readonly)
+		[2]: ShoulderCamera_upvr (readonly)
+	]]
+	local Recoil = arg1.instance:GetAttribute("Recoil")
+	Crosshair_upvr.pulse(Recoil)
+	ShoulderCamera_upvr.recoil.r = CFrame.Angles(math.rad(10 * Recoil), math.rad(math.random(-5, 5) * Recoil), 0)
+	task.wait(0.05)
+	ShoulderCamera_upvr.recoil.r = CFrame.new()
+end
+function module_upvr.initiate() -- Line 502
+	--[[ Upvalues[2]:
+		[1]: Net_upvr (readonly)
+		[2]: module_upvr (readonly)
+	]]
+	Net_upvr.hook("gunshot", module_upvr.gunshot)
+	Net_upvr.hook("rocket_shot", module_upvr.rocket_shot)
+	Net_upvr.hook("firework_shot", module_upvr.firework_shot)
+	Net_upvr.hook("arrow_shot", module_upvr.arrow_shot)
+	Net_upvr.hook("bullet_hit", module_upvr.bullet_hit)
+end
+local Timer_upvr = require(game.ReplicatedStorage.Modules.Core.Timer)
+function module_upvr.load_idling_animations(arg1) -- Line 510
+	--[[ Upvalues[3]:
+		[1]: Char_upvr (readonly)
+		[2]: Timer_upvr (readonly)
+		[3]: ShoulderCamera_upvr (readonly)
+	]]
+	local IdleAnimations = arg1.instance:FindFirstChild("IdleAnimations", true)
+	if IdleAnimations then
+		for _, v_8 in IdleAnimations:GetChildren() do
+			if v_8:GetAttribute("StandingStill") then
+				table.insert({}, Char_upvr.anim(v_8))
+			else
+				table.insert({}, Char_upvr.anim(v_8))
+			end
+		end
+	end
+	local tbl_upvr_3 = {}
+	local tbl_upvr_2 = {}
+	return Timer_upvr.new(10, function() -- Line 525
+		--[[ Upvalues[5]:
+			[1]: ShoulderCamera_upvr (copied, readonly)
+			[2]: Char_upvr (copied, readonly)
+			[3]: tbl_upvr_3 (readonly)
+			[4]: arg1 (readonly)
+			[5]: tbl_upvr_2 (readonly)
+		]]
+		if ShoulderCamera_upvr.enabled.get() then
+		else
+			if Char_upvr.moving.get() and 0 < #tbl_upvr_3 then
+				arg1.playing_idle = tbl_upvr_3[math.random(1, #tbl_upvr_3)]
+				arg1.playing_idle:Play()
+				return
+			end
+			if 0 < #tbl_upvr_2 then
+				arg1.playing_idle = tbl_upvr_2[math.random(1, #tbl_upvr_2)]
+				arg1.playing_idle:Play()
+			end
+		end
+	end, true)
+end
+local SniperScope_upvr = script.SniperScope
+function module_upvr.scope_animation(arg1) -- Line 541
+	--[[ Upvalues[4]:
+		[1]: SniperScope_upvr (readonly)
+		[2]: LocalPlayer_upvr (readonly)
+		[3]: Util_upvr (readonly)
+		[4]: Char_upvr (readonly)
+	]]
+	if arg1 then
+		SniperScope_upvr.Parent = LocalPlayer_upvr.PlayerGui
+		script.Scope:Play()
+		SniperScope_upvr.Enabled = true
+		SniperScope_upvr.Scope.BackgroundTransparency = 0
+		SniperScope_upvr.Scope.Position = UDim2.fromScale(math.random(3, 7) * 0.1, math.random(6, 7) * 0.1)
+		Util_upvr.tween(SniperScope_upvr.Scope, TweenInfo.new(1, Enum.EasingStyle.Back), {
+			BackgroundTransparency = 1;
+			Position = UDim2.fromScale(0.5, 0.5);
+		})
+		for _, v_9 in Char_upvr.get():GetDescendants() do
+			if v_9:IsA("BasePart") then
+				v_9.LocalTransparencyModifier = 1
+			end
+		end
+	else
+		SniperScope_upvr.Enabled = false
+		SniperScope_upvr.Parent = nil
+		for _, v_15 in Char_upvr.get():GetDescendants() do
+			if v_15:IsA("BasePart") then
+				v_15.LocalTransparencyModifier = 0
+			end
+		end
+	end
+end
+local tbl_2_upvr = {}
+local function log_fire_upvr(arg1) -- Line 567, Named "log_fire"
+	--[[ Upvalues[1]:
+		[1]: tbl_2_upvr (readonly)
+	]]
+	local var190 = tbl_2_upvr[arg1]
+	if not var190 then
+		var190 = {}
+	end
+	tbl_2_upvr[arg1] = var190
+	local os_clock_result1 = os.clock()
+	table.insert(tbl_2_upvr[arg1], os_clock_result1)
+	while 0 < #tbl_2_upvr[arg1] and tbl_2_upvr[arg1][1] < os_clock_result1 - 1 do
+		table.remove(tbl_2_upvr[arg1], 1)
+	end
+end
+local function check_fire_rate_upvr(arg1, arg2) -- Line 578, Named "check_fire_rate"
+	--[[ Upvalues[1]:
+		[1]: tbl_2_upvr (readonly)
+	]]
+	if not tbl_2_upvr[arg1] then
+		return true
+	end
+	while 0 < #tbl_2_upvr[arg1] and tbl_2_upvr[arg1][1] < os.clock() - 1 do
+		table.remove(tbl_2_upvr[arg1], 1)
+	end
+	if arg2 * 1 < #tbl_2_upvr[arg1] then
+		return false
+	end
+	return true
+end
+local UI_upvr = require(game.ReplicatedStorage.Modules.Core.UI)
+local ItemUtils_upvr = require(ReplicatedStorage.Modules.Game.Inventory.ItemUtils)
+local Data_upvr = require(game.ReplicatedStorage.Modules.Core.Data)
+local ToolUtil_upvr = require(ReplicatedStorage.Modules.Game.ToolUtil)
+local Vehicle_upvr = require(game.ReplicatedStorage.Modules.Game.VehicleSystem.Vehicle)
+local Keybinds_upvr = require(game.ReplicatedStorage.Modules.Game.Keybinds)
+local MultiPlayerAnimation_upvr = require(game.ReplicatedStorage.Modules.Game.MultiAnimations.MultiPlayerAnimation)
+function module_upvr.loaded() -- Line 592
+	--[[ Upvalues[17]:
+		[1]: UI_upvr (readonly)
+		[2]: module_upvr (readonly)
+		[3]: ShoulderCamera_upvr (readonly)
+		[4]: ItemUtils_upvr (readonly)
+		[5]: Data_upvr (readonly)
+		[6]: Util_upvr (readonly)
+		[7]: ToolUtil_upvr (readonly)
+		[8]: State_upvr (readonly)
+		[9]: Char_upvr (readonly)
+		[10]: Crosshair_upvr (readonly)
+		[11]: Net_upvr (readonly)
+		[12]: check_fire_rate_upvr (readonly)
+		[13]: LocalPlayer_upvr (readonly)
+		[14]: log_fire_upvr (readonly)
+		[15]: Vehicle_upvr (readonly)
+		[16]: Keybinds_upvr (readonly)
+		[17]: MultiPlayerAnimation_upvr (readonly)
+	]]
+	local Hotbar_upvr = require(game.ReplicatedStorage.Modules.Game.Inventory.Hotbar)
+	local any_get_result1_4_upvr = UI_upvr.get("Bullets")
+	ShoulderCamera_upvr.spring_crosshair.hook(function(arg1) -- Line 597
+		--[[ Upvalues[2]:
+			[1]: module_upvr (copied, readonly)
+			[2]: any_get_result1_4_upvr (readonly)
+		]]
+		local var202 = module_upvr
+		if var202.equipped_gun.get() then
+			if 0 >= arg1 then
+				var202 = false
+			else
+				var202 = true
+			end
+			any_get_result1_4_upvr.Visible = var202
+			var202 = 0.3 + (1 - arg1) * 0.7
+			any_get_result1_4_upvr.TextTransparency = var202
+		end
+	end)
+	Hotbar_upvr.hook_hotbar_items(function(arg1) -- Line 607
+		--[[ Upvalues[2]:
+			[1]: ItemUtils_upvr (copied, readonly)
+			[2]: Data_upvr (copied, readonly)
+		]]
+		local Value = arg1.Tool.Value
+		if Value and Value:HasTag("Gun") then
+			arg1.ToolFrame.Ammo.Visible = true
+			arg1.ToolFrame.Ammo.Text = `{ItemUtils_upvr.get_item_info(Data_upvr, Value:GetAttribute("ItemGUID")).ammo_amount}/{Value:GetAttribute("MagSize")}`
+		end
+	end)
+	local var206_upvw
+	module_upvr.equipped_gun.hook(function(arg1) -- Line 621
+		--[[ Upvalues[7]:
+			[1]: any_get_result1_4_upvr (readonly)
+			[2]: var206_upvw (read and write)
+			[3]: Util_upvr (copied, readonly)
+			[4]: UI_upvr (copied, readonly)
+			[5]: ItemUtils_upvr (copied, readonly)
+			[6]: Data_upvr (copied, readonly)
+			[7]: Hotbar_upvr (readonly)
+		]]
+		if arg1 == nil then
+			any_get_result1_4_upvr.Text = ""
+		end
+		if var206_upvw then
+			var206_upvw:Disconnect()
+			var206_upvw = nil
+		end
+		if arg1 then
+			var206_upvw = Util_upvr.watch_attribute(arg1, "SniperScope", function(arg1_7) -- Line 630
+				--[[ Upvalues[1]:
+					[1]: UI_upvr (copied, readonly)
+				]]
+				UI_upvr.get("CrosshairFrame").Visible = not arg1_7
+			end)
+		else
+			UI_upvr.get("CrosshairFrame").Visible = true
+		end
+		if arg1 then
+			local ItemGUID = arg1:GetAttribute("ItemGUID")
+			local any_get_hotbar_item_by_guid_result1_3 = Hotbar_upvr.get_hotbar_item_by_guid(ItemGUID)
+			if any_get_hotbar_item_by_guid_result1_3 then
+				any_get_hotbar_item_by_guid_result1_3.ToolFrame.Ammo.Text = `{ItemUtils_upvr.get_item_info(Data_upvr, ItemGUID).ammo_amount}/{arg1:GetAttribute("MagSize")}`
+			end
+		end
+	end)
+	local ItemsUI_upvr = require(game.ReplicatedStorage.Modules.Game.Inventory.ItemsUI)
+	module_upvr.class.hook(function(arg1) -- Line 646
+		--[[ Upvalues[19]:
+			[1]: Util_upvr (copied, readonly)
+			[2]: Hotbar_upvr (readonly)
+			[3]: ToolUtil_upvr (copied, readonly)
+			[4]: module_upvr (copied, readonly)
+			[5]: State_upvr (copied, readonly)
+			[6]: Char_upvr (copied, readonly)
+			[7]: Crosshair_upvr (copied, readonly)
+			[8]: ItemUtils_upvr (copied, readonly)
+			[9]: Data_upvr (copied, readonly)
+			[10]: Net_upvr (copied, readonly)
+			[11]: ShoulderCamera_upvr (copied, readonly)
+			[12]: check_fire_rate_upvr (copied, readonly)
+			[13]: LocalPlayer_upvr (copied, readonly)
+			[14]: log_fire_upvr (copied, readonly)
+			[15]: Vehicle_upvr (copied, readonly)
+			[16]: UI_upvr (copied, readonly)
+			[17]: Keybinds_upvr (copied, readonly)
+			[18]: MultiPlayerAnimation_upvr (copied, readonly)
+			[19]: ItemsUI_upvr (readonly)
+		]]
+		-- KONSTANTERROR: [0] 1. Error Block 37 start (CF ANALYSIS FAILED)
+		local instance_3_upvr = arg1.instance
+		local var220
+		if not game.Players:GetPlayerFromCharacter(instance_3_upvr.Parent) then
+			return false
+		end
+		Util_upvr.watch_attribute(instance_3_upvr, "MagSize", function(arg1_8) -- Line 652
+			--[[ Upvalues[2]:
+				[1]: Hotbar_upvr (copied, readonly)
+				[2]: instance_3_upvr (readonly)
+			]]
+			Hotbar_upvr.fire_hooks(instance_3_upvr:GetAttribute("ItemGUID"))
+		end)
+		ToolUtil_upvr.override_ik_hold(arg1)
+		local var222_upvw
+		local any_new_result1_upvr = State_upvr.new(-1)
+		local BarrelAttachment = instance_3_upvr:FindFirstChild("BarrelAttachment", true)
+		var220 = nil
+		if instance_3_upvr:GetAttribute("AmmoType") == "rocket" then
+			var220 = script.RocketBarrelParticles
+			any_new_result1_upvr.hook(function(arg1_9) -- Line 671
+				--[[ Upvalues[1]:
+					[1]: instance_3_upvr (readonly)
+				]]
+				for _, v_10 in instance_3_upvr:FindFirstChild("Rocket"):GetChildren() do
+					local children_2 = v_10:IsA("BasePart")
+					if children_2 then
+						if arg1_9 == 0 then
+							children_2 = 1
+						else
+							children_2 = 0
+						end
+						v_10.Transparency = children_2
+					end
+				end
+			end)
+			-- KONSTANTWARNING: GOTO [103] #75
+		end
+		-- KONSTANTERROR: [0] 1. Error Block 37 end (CF ANALYSIS FAILED)
+		-- KONSTANTERROR: [71] 53. Error Block 38 start (CF ANALYSIS FAILED)
+		if instance_3_upvr:GetAttribute("AmmoType") == "firework" then
+			var220 = script.FireworkBarrelParticles
+			any_new_result1_upvr.hook(function(arg1_10) -- Line 680
+				--[[ Upvalues[1]:
+					[1]: instance_3_upvr (readonly)
+				]]
+				for _, v_11 in instance_3_upvr:FindFirstChild("Rocket"):GetChildren() do
+					local children_7 = v_11:IsA("BasePart")
+					if children_7 then
+						if arg1_10 == 0 then
+							children_7 = 1
+						else
+							children_7 = 0
+						end
+						v_11.Transparency = children_7
+					end
+				end
+			end)
+		elseif instance_3_upvr:GetAttribute("AmmoType") == "arrow" then
+			any_new_result1_upvr.hook(function(arg1_11) -- Line 688
+				--[[ Upvalues[1]:
+					[1]: instance_3_upvr (readonly)
+				]]
+				for _, v_16 in instance_3_upvr:FindFirstChild("Arrow"):GetChildren() do
+					local children_4 = v_16:IsA("BasePart")
+					if children_4 then
+						if arg1_11 == 0 then
+							children_4 = 1
+						else
+							children_4 = 0
+						end
+						v_16.Transparency = children_4
+					end
+				end
+			end)
+		else
+			var220 = script.BarrelParticles
+		end
+		if var220 then
+			for _, v_12 in var220:GetChildren() do
+				if v_12.Name ~= "Sound" or not BarrelAttachment:FindFirstChild("Sound") then
+					v_12:Clone().Parent = BarrelAttachment
+				end
+			end
+		end
+		local any_anim_result1_upvr_3 = Char_upvr.anim(arg1.instance:FindFirstChild("ADSAnimation", true) or 97952042379271)
+		local any_anim_result1_upvr = Char_upvr.anim(arg1.instance:FindFirstChild("ReloadAnimation", true) or 95709349617639, false, Enum.AnimationPriority.Action4)
+		local any_anim_result1_upvr_2 = Char_upvr.anim(arg1.instance:FindFirstChild("IdleAnimation", true) or 84928275123466)
+		local var258_upvw
+		local function cancel_reload_upvr() -- Line 714, Named "cancel_reload"
+			--[[ Upvalues[5]:
+				[1]: var258_upvw (read and write)
+				[2]: any_anim_result1_upvr (readonly)
+				[3]: arg1 (readonly)
+				[4]: instance_3_upvr (readonly)
+				[5]: Crosshair_upvr (copied, readonly)
+			]]
+			if var258_upvw.running then
+				var258_upvw:cancel()
+				any_anim_result1_upvr:Stop(0.2)
+				local ReloadSound = arg1.instance:FindFirstChild("ReloadSound", true)
+				if ReloadSound then
+					ReloadSound:Stop()
+				end
+				if instance_3_upvr:GetAttribute("AmmoType") == "rocket" or instance_3_upvr:GetAttribute("AmmoType") == "firework" then
+					for _, v_13 in instance_3_upvr:FindFirstChild("Rocket"):GetChildren() do
+						if v_13:IsA("BasePart") then
+							v_13.Transparency = 1
+						end
+					end
+				elseif instance_3_upvr:GetAttribute("AmmoType") == "arrow" then
+					for _, v_17 in instance_3_upvr:FindFirstChild("Arrow"):GetChildren() do
+						if v_17:IsA("BasePart") then
+							v_17.Transparency = 1
+						end
+					end
+				end
+				Crosshair_upvr.is_reloading.set(false)
+			end
+		end
+		local any_load_idling_animations_result1_upvr = module_upvr.load_idling_animations(arg1)
+		var258_upvw = Util_upvr.override(function(arg1_12) -- Line 743
+			--[[ Upvalues[9]:
+				[1]: arg1 (readonly)
+				[2]: ItemUtils_upvr (copied, readonly)
+				[3]: Data_upvr (copied, readonly)
+				[4]: instance_3_upvr (readonly)
+				[5]: any_new_result1_upvr (readonly)
+				[6]: Crosshair_upvr (copied, readonly)
+				[7]: any_anim_result1_upvr (readonly)
+				[8]: var258_upvw (read and write)
+				[9]: Net_upvr (copied, readonly)
+			]]
+			-- KONSTANTWARNING: Variable analysis failed. Output will have some incorrect variable assignments
+			local var308 = arg1.instance:GetAttribute("ReloadMultiplierOffset") or 1
+			while true do
+				local var309
+				if any_new_result1_upvr.get() == 0 and var309 < 1 then
+					local var310 = true
+					var309 = ItemUtils_upvr.get_item_count(Data_upvr, "ammo", instance_3_upvr:GetAttribute("AmmoType"))
+				end
+				if var309 < 1 or not var310 then
+					Crosshair_upvr.pulse_red()
+				end
+				if arg1.instance:GetAttribute("MagSize") <= any_new_result1_upvr.get() or var309 < 1 or not var310 then
+					if false then
+						local PumpSound_2 = arg1.instance:FindFirstChild("PumpSound", true)
+						if PumpSound_2 then
+							PumpSound_2:Play()
+						end
+					end
+					return
+				end
+				if instance_3_upvr:GetAttribute("AmmoType") == "rocket" or instance_3_upvr:GetAttribute("AmmoType") == "firework" then
+					for _, v_14 in instance_3_upvr:FindFirstChild("Rocket"):GetChildren() do
+						if v_14:IsA("BasePart") then
+							v_14.Transparency = 0
+						end
+					end
+				elseif instance_3_upvr:GetAttribute("AmmoType") == "arrow" then
+					task.delay(0.5, function() -- Line 776
+						--[[ Upvalues[1]:
+							[1]: instance_3_upvr (copied, readonly)
+						]]
+						for _, v_18 in instance_3_upvr:FindFirstChild("Arrow"):GetChildren() do
+							if v_18:IsA("BasePart") then
+								v_18.Transparency = 0
+							end
+						end
+					end)
+				end
+				local any_get_result1_5 = arg1.states.reload_time.get()
+				local ReloadSound_2_upvr = arg1.instance:FindFirstChild("ReloadSound", true)
+				if ReloadSound_2_upvr then
+					local var323 = ItemUtils_upvr.get_item_instance(instance_3_upvr.Name):GetAttribute("reload_time") / any_get_result1_5
+					if ReloadSound_2_upvr:GetAttribute("DefaultPlaybackSpeed") then
+						var323 *= ReloadSound_2_upvr:GetAttribute("DefaultPlaybackSpeed")
+					end
+					ReloadSound_2_upvr.PlaybackSpeed = var323
+					if ReloadSound_2_upvr:GetAttribute("PlayDelay") then
+						task.delay(ReloadSound_2_upvr:GetAttribute("PlayDelay"), function() -- Line 798
+							--[[ Upvalues[2]:
+								[1]: var258_upvw (copied, read and write)
+								[2]: ReloadSound_2_upvr (readonly)
+							]]
+							if var258_upvw.running then
+								ReloadSound_2_upvr:Play()
+							end
+						end)
+					else
+						ReloadSound_2_upvr:Play()
+					end
+				end
+				if any_anim_result1_upvr.IsPlaying then
+					any_anim_result1_upvr:Stop(0.2)
+					task.wait(0.2)
+				end
+				any_anim_result1_upvr:Play(0.2)
+				any_anim_result1_upvr:AdjustSpeed(any_anim_result1_upvr.Length / any_get_result1_5)
+				Crosshair_upvr.reloading_length.set(any_get_result1_5 * var308)
+				Crosshair_upvr.is_reloading.set(true)
+				task.wait(any_get_result1_5 * var308)
+				local any_get_result1, _ = Net_upvr.get("reload_gun", arg1.instance, arg1_12)
+				local var327 = any_get_result1
+				Crosshair_upvr.is_reloading.set(false)
+				if var327 then
+					any_new_result1_upvr.set(var327)
+				end
+			end
+		end)
+		local var328_upvw = var258_upvw
+		arg1.reload = var328_upvw
+		local var330_upvw = 0
+		local var331_upvr = 60 / arg1.states.fire_rate.get()
+		local any_override_result1_upvr = Util_upvr.override(module_upvr.apply_recoil)
+		local any_anim_result1_upvr_4 = Char_upvr.anim(arg1.instance:FindFirstChild("ShootAnimation", true) or 102186577987623)
+		local function var329_upvr() -- Line 838
+			--[[ Upvalues[17]:
+				[1]: ShoulderCamera_upvr (copied, readonly)
+				[2]: Crosshair_upvr (copied, readonly)
+				[3]: arg1 (readonly)
+				[4]: any_new_result1_upvr (readonly)
+				[5]: var328_upvw (read and write)
+				[6]: var330_upvw (read and write)
+				[7]: var331_upvr (readonly)
+				[8]: check_fire_rate_upvr (copied, readonly)
+				[9]: LocalPlayer_upvr (copied, readonly)
+				[10]: log_fire_upvr (copied, readonly)
+				[11]: instance_3_upvr (readonly)
+				[12]: module_upvr (copied, readonly)
+				[13]: Vehicle_upvr (copied, readonly)
+				[14]: Util_upvr (copied, readonly)
+				[15]: Net_upvr (copied, readonly)
+				[16]: any_override_result1_upvr (readonly)
+				[17]: any_anim_result1_upvr_4 (readonly)
+			]]
+			local os_clock_result1_2 = os.clock()
+			if ShoulderCamera_upvr.enabled.get() and not Crosshair_upvr.is_reloading.get() and arg1.random_object ~= nil then
+				if any_new_result1_upvr.get() == 0 and not var328_upvw.running then
+					var328_upvw()
+					return
+				end
+				if 0 < any_new_result1_upvr.get() and var331_upvr <= os_clock_result1_2 - var330_upvw and check_fire_rate_upvr(LocalPlayer_upvr, arg1.states.fire_rate.get() / 60) then
+					any_new_result1_upvr.update(function(arg1_13) -- Line 844
+						return arg1_13 - 1
+					end)
+					var330_upvw = os_clock_result1_2
+					log_fire_upvr(LocalPlayer_upvr)
+					if instance_3_upvr:GetAttribute("AmmoType") == "rocket" then
+						module_upvr.rocket_shot(arg1)
+					elseif instance_3_upvr:GetAttribute("AmmoType") == "firework" then
+						module_upvr.firework_shot(arg1)
+					elseif instance_3_upvr:GetAttribute("AmmoType") == "arrow" then
+						module_upvr.arrow_shot(arg1)
+					else
+						module_upvr.gunshot(arg1.instance)
+						local var337 = game.Workspace.CurrentCamera.CFrame * CFrame.new(0, 0, -2)
+						local any_get_car_player_is_in_result1 = Vehicle_upvr.get_car_player_is_in(LocalPlayer_upvr)
+						for _ = 1, arg1.instance:GetAttribute("Multishot") or 1 do
+							local tbl_4 = {LocalPlayer_upvr.Character}
+							if any_get_car_player_is_in_result1 then
+								table.insert(tbl_4, any_get_car_player_is_in_result1)
+							end
+							local tbl_upvr = {}
+							if module_upvr.FLAG_AIMBOT then
+							else
+								local var342_upvw = 2
+								Util_upvr.all_parts_on_ray(var337.Position, module_upvr.calculate_bullet_direction(arg1, var337.LookVector) * 500, tbl_4, function(arg1_14) -- Line 904
+									--[[ Upvalues[2]:
+										[1]: tbl_upvr (readonly)
+										[2]: var342_upvw (read and write)
+									]]
+									local var346 = {
+										Instance = arg1_14.Instance;
+										Position = arg1_14.Position;
+										Normal = arg1_14.Normal;
+									}
+									table.insert(tbl_upvr, var346)
+									if var346.Instance.CanCollide then
+										var342_upvw -= 1
+										if var342_upvw <= 0 then
+											return false
+										end
+									end
+									return true
+								end)
+							end
+							table.insert({}, tbl_upvr)
+						end
+					end
+					-- KONSTANTERROR: Expression was reused, decompilation is incorrect
+					Net_upvr.send("shoot_gun", arg1.instance, game.Workspace.CurrentCamera.CFrame * CFrame.new(0, 0, -2), {})
+					any_override_result1_upvr(arg1)
+					if arg1.playing_idle then
+						arg1.playing_idle:Stop()
+					end
+					any_anim_result1_upvr_4:Play()
+				end
+			end
+		end
+		local function update_ammo_upvr(arg1_15) -- Line 943, Named "update_ammo"
+			--[[ Upvalues[5]:
+				[1]: instance_3_upvr (readonly)
+				[2]: UI_upvr (copied, readonly)
+				[3]: ItemUtils_upvr (copied, readonly)
+				[4]: Data_upvr (copied, readonly)
+				[5]: Hotbar_upvr (copied, readonly)
+			]]
+			local ItemGUID_2 = instance_3_upvr:GetAttribute("ItemGUID")
+			local MagSize = instance_3_upvr:GetAttribute("MagSize")
+			UI_upvr.get("Bullets").Text = `{arg1_15}/{MagSize}`
+			ItemUtils_upvr.get_item_info(Data_upvr, ItemGUID_2).ammo_amount = arg1_15
+			local any_get_hotbar_item_by_guid_result1_2 = Hotbar_upvr.get_hotbar_item_by_guid(ItemGUID_2)
+			if any_get_hotbar_item_by_guid_result1_2 then
+				any_get_hotbar_item_by_guid_result1_2.ToolFrame.Ammo.Text = `{arg1_15}/{MagSize}`
+			end
+		end
+		any_new_result1_upvr.hook(function(arg1_16, arg2) -- Line 958
+			--[[ Upvalues[3]:
+				[1]: module_upvr (copied, readonly)
+				[2]: instance_3_upvr (readonly)
+				[3]: update_ammo_upvr (readonly)
+			]]
+			local var351 = instance_3_upvr
+			if module_upvr.equipped_gun.get() == var351 then
+				if arg1_16 == -1 then
+					var351 = 0
+				else
+					var351 = arg1_16
+				end
+				update_ammo_upvr(var351)
+			end
+		end)
+		local var352_upvw = false
+		local var353_upvw
+		local var354_upvw
+		local function aiming_upvr() -- Line 970, Named "aiming"
+			--[[ Upvalues[9]:
+				[1]: ShoulderCamera_upvr (copied, readonly)
+				[2]: instance_3_upvr (readonly)
+				[3]: any_anim_result1_upvr_3 (readonly)
+				[4]: any_anim_result1_upvr_2 (readonly)
+				[5]: module_upvr (copied, readonly)
+				[6]: Keybinds_upvr (copied, readonly)
+				[7]: MultiPlayerAnimation_upvr (copied, readonly)
+				[8]: var329_upvr (readonly)
+				[9]: var352_upvw (read and write)
+			]]
+			if ShoulderCamera_upvr.enabled.get() then
+				ShoulderCamera_upvr.spring_zoom.r = instance_3_upvr:GetAttribute("Zoom") or 1
+				any_anim_result1_upvr_3:Play()
+				any_anim_result1_upvr_2:Stop()
+				if not module_upvr.FLAG_MOBILE_AUTO_AIM_WHEN_SHOOTING then
+					Keybinds_upvr.hook_action("shoot", function(arg1_17) -- Line 977
+						--[[ Upvalues[3]:
+							[1]: MultiPlayerAnimation_upvr (copied, readonly)
+							[2]: var329_upvr (copied, readonly)
+							[3]: var352_upvw (copied, read and write)
+						]]
+						if MultiPlayerAnimation_upvr.block_input.get() then
+						else
+							if arg1_17 then
+								var329_upvr()
+							end
+							var352_upvw = arg1_17
+						end
+					end)
+					-- KONSTANTWARNING: GOTO [72] #55
+				end
+			else
+				ShoulderCamera_upvr.spring_zoom.r = 0
+				any_anim_result1_upvr_3:Stop()
+				if module_upvr.equipped_gun.get() == instance_3_upvr then
+					any_anim_result1_upvr_2:Play()
+				end
+				if not module_upvr.FLAG_MOBILE_AUTO_AIM_WHEN_SHOOTING then
+					Keybinds_upvr.unhook_action("shoot")
+				end
+			end
+			if instance_3_upvr:GetAttribute("SniperScope") then
+				module_upvr.scope_animation(ShoulderCamera_upvr.enabled.get())
+			end
+		end
+		local var357_upvw = true
+		instance_3_upvr.Equipped:Connect(function() -- Line 1005
+			--[[ Upvalues[23]:
+				[1]: Char_upvr (copied, readonly)
+				[2]: instance_3_upvr (readonly)
+				[3]: var357_upvw (read and write)
+				[4]: any_new_result1_upvr (readonly)
+				[5]: ItemUtils_upvr (copied, readonly)
+				[6]: Data_upvr (copied, readonly)
+				[7]: arg1 (readonly)
+				[8]: module_upvr (copied, readonly)
+				[9]: ShoulderCamera_upvr (copied, readonly)
+				[10]: any_anim_result1_upvr_2 (readonly)
+				[11]: Keybinds_upvr (copied, readonly)
+				[12]: MultiPlayerAnimation_upvr (copied, readonly)
+				[13]: aiming_upvr (readonly)
+				[14]: var328_upvw (read and write)
+				[15]: var329_upvr (readonly)
+				[16]: var352_upvw (read and write)
+				[17]: var222_upvw (read and write)
+				[18]: Util_upvr (copied, readonly)
+				[19]: var353_upvw (read and write)
+				[20]: any_load_idling_animations_result1_upvr (readonly)
+				[21]: update_ammo_upvr (readonly)
+				[22]: var354_upvw (read and write)
+				[23]: LocalPlayer_upvr (copied, readonly)
+			]]
+			-- KONSTANTERROR: [0] 1. Error Block 49 start (CF ANALYSIS FAILED)
+			if Char_upvr.get(true) == nil or not instance_3_upvr:IsDescendantOf(Char_upvr.get(true)) then
+			else
+				if Char_upvr.get_hum():GetAttribute("IsDead") or Char_upvr.get_hum():GetAttribute("Stunned") then return end
+				if var357_upvw then
+					any_new_result1_upvr.set(ItemUtils_upvr.get_available_ammo(Data_upvr, instance_3_upvr))
+					var357_upvw = false
+				elseif any_new_result1_upvr.get() ~= arg1.states.mag.get() then
+					any_new_result1_upvr.set(arg1.states.mag.get())
+				end
+				for _, v_19 in instance_3_upvr:GetDescendants() do
+					if v_19:IsA("BasePart") then
+						v_19.LocalTransparencyModifier = 0
+					end
+				end
+				local EquipAnimation = arg1.instance:FindFirstChild("EquipAnimation", true)
+				if EquipAnimation then
+					local any_anim_result1 = Char_upvr.anim(EquipAnimation)
+					any_anim_result1:Play()
+					local var366_upvw
+					var366_upvw = any_anim_result1.Stopped:Connect(function() -- Line 1030
+						--[[ Upvalues[5]:
+							[1]: var366_upvw (read and write)
+							[2]: module_upvr (copied, readonly)
+							[3]: instance_3_upvr (copied, readonly)
+							[4]: ShoulderCamera_upvr (copied, readonly)
+							[5]: any_anim_result1_upvr_2 (copied, readonly)
+						]]
+						var366_upvw:Disconnect()
+						if module_upvr.equipped_gun:get() == instance_3_upvr and not ShoulderCamera_upvr.enabled.get() then
+							any_anim_result1_upvr_2:Play()
+						end
+					end)
+					-- KONSTANTWARNING: GOTO [129] #100
+				end
+				-- KONSTANTERROR: [0] 1. Error Block 49 end (CF ANALYSIS FAILED)
+				-- KONSTANTERROR: [125] 97. Error Block 39 start (CF ANALYSIS FAILED)
+				any_anim_result1_upvr_2:Play()
+				local var367_upvw = false
+				Keybinds_upvr.hook_action("aim", function(arg1_18) -- Line 1041
+					--[[ Upvalues[4]:
+						[1]: MultiPlayerAnimation_upvr (copied, readonly)
+						[2]: ShoulderCamera_upvr (copied, readonly)
+						[3]: var367_upvw (read and write)
+						[4]: aiming_upvr (copied, readonly)
+					]]
+					if MultiPlayerAnimation_upvr.block_input.get() then
+					else
+						ShoulderCamera_upvr.enabled.set(arg1_18)
+						var367_upvw = arg1_18
+						aiming_upvr()
+					end
+				end, {
+					label = "Aim";
+					priority = 2;
+				})
+				Keybinds_upvr.hook_action("aim_toggle", function(arg1_19) -- Line 1048
+					--[[ Upvalues[3]:
+						[1]: MultiPlayerAnimation_upvr (copied, readonly)
+						[2]: ShoulderCamera_upvr (copied, readonly)
+						[3]: aiming_upvr (copied, readonly)
+					]]
+					if MultiPlayerAnimation_upvr.block_input.get() then
+					elseif arg1_19 then
+						ShoulderCamera_upvr.enabled.update(function(arg1_20) -- Line 1051
+							return not arg1_20
+						end)
+						aiming_upvr()
+					end
+				end, {
+					label = "Alt Aim";
+					priority = 3;
+				})
+				Keybinds_upvr.hook_action("reload", function(arg1_21) -- Line 1058
+					--[[ Upvalues[2]:
+						[1]: MultiPlayerAnimation_upvr (copied, readonly)
+						[2]: var328_upvw (copied, read and write)
+					]]
+					if MultiPlayerAnimation_upvr.block_input.get() then
+					elseif arg1_21 and not var328_upvw.running then
+						var328_upvw()
+					end
+				end, {
+					label = "Reload";
+					priority = 4;
+				})
+				if module_upvr.FLAG_MOBILE_AUTO_AIM_WHEN_SHOOTING then
+					Keybinds_upvr.hook_action("shoot", function(arg1_22) -- Line 1066
+						--[[ Upvalues[8]:
+							[1]: MultiPlayerAnimation_upvr (copied, readonly)
+							[2]: module_upvr (copied, readonly)
+							[3]: Keybinds_upvr (copied, readonly)
+							[4]: var367_upvw (read and write)
+							[5]: ShoulderCamera_upvr (copied, readonly)
+							[6]: aiming_upvr (copied, readonly)
+							[7]: var329_upvr (copied, readonly)
+							[8]: var352_upvw (copied, read and write)
+						]]
+						if MultiPlayerAnimation_upvr.block_input.get() then
+						else
+							if module_upvr.FLAG_MOBILE_AUTO_AIM_WHEN_SHOOTING and Keybinds_upvr.current_input_mode.get() == "touch" and not var367_upvw then
+								ShoulderCamera_upvr.enabled.set(arg1_22)
+								aiming_upvr()
+							end
+							if arg1_22 then
+								var329_upvr()
+							end
+							var352_upvw = arg1_22
+						end
+					end)
+				end
+				if arg1.states.automatic.get() then
+					var222_upvw = Util_upvr.run(function(arg1_23) -- Line 1087
+						--[[ Upvalues[2]:
+							[1]: var352_upvw (copied, read and write)
+							[2]: var329_upvr (copied, readonly)
+						]]
+						if var352_upvw then
+							var329_upvr()
+						end
+					end)
+				elseif module_upvr.FLAG_MOBILE_AUTO_AIM_WHEN_SHOOTING then
+					Keybinds_upvr.current_input_mode.hook(function(arg1_24) -- Line 1093
+						--[[ Upvalues[4]:
+							[1]: var222_upvw (copied, read and write)
+							[2]: Util_upvr (copied, readonly)
+							[3]: var352_upvw (copied, read and write)
+							[4]: var329_upvr (copied, readonly)
+						]]
+						if var222_upvw then
+							var222_upvw:Disconnect()
+							var222_upvw = nil
+						end
+						if arg1_24 == "touch" then
+							var222_upvw = Util_upvr.run(function(arg1_25) -- Line 1100
+								--[[ Upvalues[2]:
+									[1]: var352_upvw (copied, read and write)
+									[2]: var329_upvr (copied, readonly)
+								]]
+								if var352_upvw then
+									var329_upvr()
+								end
+							end)
+						end
+					end)
+				end
+				module_upvr.equipped_gun.set(instance_3_upvr)
+				var353_upvw = task.delay(5, function() -- Line 1110
+					--[[ Upvalues[1]:
+						[1]: any_load_idling_animations_result1_upvr (copied, readonly)
+					]]
+					any_load_idling_animations_result1_upvr.start()
+				end)
+				update_ammo_upvr(any_new_result1_upvr.get())
+				var354_upvw = Util_upvr.watch_attribute(LocalPlayer_upvr, "IsMultiPlayerAnimating", function(arg1_26) -- Line 1116
+					--[[ Upvalues[2]:
+						[1]: ShoulderCamera_upvr (copied, readonly)
+						[2]: aiming_upvr (copied, readonly)
+					]]
+					if arg1_26 and ShoulderCamera_upvr.enabled.get() then
+						ShoulderCamera_upvr.enabled.set(false)
+						aiming_upvr()
+					end
+				end)
+				-- KONSTANTERROR: [125] 97. Error Block 39 end (CF ANALYSIS FAILED)
+			end
+		end)
+		local function unhook_upvr() -- Line 1129, Named "unhook"
+			--[[ Upvalues[12]:
+				[1]: module_upvr (copied, readonly)
+				[2]: instance_3_upvr (readonly)
+				[3]: var353_upvw (read and write)
+				[4]: any_load_idling_animations_result1_upvr (readonly)
+				[5]: cancel_reload_upvr (readonly)
+				[6]: Keybinds_upvr (copied, readonly)
+				[7]: any_anim_result1_upvr_3 (readonly)
+				[8]: any_anim_result1_upvr (readonly)
+				[9]: any_anim_result1_upvr_2 (readonly)
+				[10]: var354_upvw (read and write)
+				[11]: var222_upvw (read and write)
+				[12]: var352_upvw (read and write)
+			]]
+			if module_upvr.equipped_gun.get() == instance_3_upvr then
+				module_upvr.equipped_gun.set(nil)
+				if var353_upvw then
+					task.cancel(var353_upvw)
+					var353_upvw = nil
+				end
+				any_load_idling_animations_result1_upvr.stop()
+				cancel_reload_upvr()
+				Keybinds_upvr.unhook_action("aim")
+				Keybinds_upvr.unhook_action("aim_toggle")
+				Keybinds_upvr.unhook_action("reload")
+				Keybinds_upvr.unhook_action("shoot")
+				any_anim_result1_upvr_3:Stop()
+				any_anim_result1_upvr:Stop()
+				any_anim_result1_upvr_2:Stop()
+				if var354_upvw then
+					var354_upvw:Disconnect()
+					var354_upvw = nil
+				end
+			end
+			if var222_upvw then
+				var222_upvw:Disconnect()
+				var222_upvw = nil
+			end
+			var352_upvw = false
+		end
+		instance_3_upvr.Unequipped:Connect(unhook_upvr)
+		instance_3_upvr.Destroying:Connect(function() -- Line 1163
+			--[[ Upvalues[1]:
+				[1]: unhook_upvr (readonly)
+			]]
+			unhook_upvr()
+		end)
+		do
+			return function() -- Line 1168
+				--[[ Upvalues[6]:
+					[1]: arg1 (readonly)
+					[2]: module_upvr (copied, readonly)
+					[3]: instance_3_upvr (readonly)
+					[4]: ItemUtils_upvr (copied, readonly)
+					[5]: Data_upvr (copied, readonly)
+					[6]: ItemsUI_upvr (copied, readonly)
+				]]
+				arg1.states.seed.hook(function(arg1_27, arg2) -- Line 1169
+					--[[ Upvalues[1]:
+						[1]: arg1 (copied, readonly)
+					]]
+					if arg1_27 ~= arg2 then
+						arg1.random_object = Random.new(arg1_27)
+					end
+				end)
+				arg1.states.durability.hook(function(arg1_28) -- Line 1175
+					--[[ Upvalues[5]:
+						[1]: module_upvr (copied, readonly)
+						[2]: instance_3_upvr (copied, readonly)
+						[3]: ItemUtils_upvr (copied, readonly)
+						[4]: Data_upvr (copied, readonly)
+						[5]: ItemsUI_upvr (copied, readonly)
+					]]
+					if module_upvr.equipped_gun.get() == instance_3_upvr and instance_3_upvr:GetAttribute("ItemGUID") then
+						ItemUtils_upvr.get_item_info(Data_upvr, instance_3_upvr:GetAttribute("ItemGUID")).durability = arg1_28
+						ItemsUI_upvr.update_item_by_guid(instance_3_upvr:GetAttribute("ItemGUID"))
+					end
+				end)
+			end
+		end
+		-- KONSTANTERROR: [71] 53. Error Block 38 end (CF ANALYSIS FAILED)
+	end)
+end
+return module_upvr
