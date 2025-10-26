@@ -1,0 +1,71 @@
+local args = {
+	42,
+	"shoot_gun",
+	game:GetService("Players").LocalPlayer.Character:WaitForChild("Double Barrel"),
+	CFrame.new(-197.74432373046875, 256.87713623046875, -225.86502075195312, -0.8919643759727478, -0.1625976711511612, 0.4218549430370331, 0, 0.9330891370773315, 0.3596452474594116, -0.45210573077201843, 0.32079073786735535, -0.8322822451591492),
+	{
+		{
+			{
+				Normal = Vector3.yAxis,
+				Instance = workspace:WaitForChild("Map"):WaitForChild("Tiles"):WaitForChild("GunShopTile"):WaitForChild("PatriotWeapons"):WaitForChild("Exterior"):WaitForChild("Structure"):WaitForChild("Floor"):WaitForChild("Part"),
+				Position = vector.create(-205.38914489746094, 251.3679656982422, -212.73806762695312)
+			},
+			{
+				Normal = Vector3.yAxis,
+				Instance = workspace:WaitForChild("Map"):WaitForChild("Sewers"):WaitForChild("Model"):WaitForChild("Model"):WaitForChild("Part"),
+				Position = vector.create(-205.4904022216797, 251.2949981689453, -212.56419372558594)
+			}
+		},
+		{
+			{
+				Normal = Vector3.yAxis,
+				Instance = workspace:WaitForChild("Map"):WaitForChild("Tiles"):WaitForChild("GunShopTile"):WaitForChild("PatriotWeapons"):WaitForChild("Exterior"):WaitForChild("Structure"):WaitForChild("Floor"):WaitForChild("Part"),
+				Position = vector.create(-205.18557739257812, 251.3679656982422, -212.14163208007812)
+			},
+			{
+				Normal = Vector3.yAxis,
+				Instance = workspace:WaitForChild("Map"):WaitForChild("Sewers"):WaitForChild("Model"):WaitForChild("Model"):WaitForChild("Part"),
+				Position = vector.create(-205.28414916992188, 251.2949981689453, -211.95985412597656)
+			}
+		},
+		{
+			{
+				Normal = Vector3.yAxis,
+				Instance = workspace:WaitForChild("Map"):WaitForChild("Tiles"):WaitForChild("GunShopTile"):WaitForChild("PatriotWeapons"):WaitForChild("Exterior"):WaitForChild("Structure"):WaitForChild("Floor"):WaitForChild("Part"),
+				Position = vector.create(-205.0771484375, 251.3679656982422, -212.56695556640625)
+			},
+			{
+				Normal = Vector3.yAxis,
+				Instance = workspace:WaitForChild("Map"):WaitForChild("Sewers"):WaitForChild("Model"):WaitForChild("Model"):WaitForChild("Part"),
+				Position = vector.create(-205.1742706298828, 251.2949981689453, -212.39080810546875)
+			}
+		},
+		{
+			{
+				Normal = Vector3.yAxis,
+				Instance = workspace:WaitForChild("Map"):WaitForChild("Tiles"):WaitForChild("GunShopTile"):WaitForChild("PatriotWeapons"):WaitForChild("Exterior"):WaitForChild("Structure"):WaitForChild("Floor"):WaitForChild("Part"),
+				Position = vector.create(-204.49330139160156, 251.3679656982422, -212.8337860107422)
+			},
+			{
+				Normal = Vector3.yAxis,
+				Instance = workspace:WaitForChild("Map"):WaitForChild("Sewers"):WaitForChild("Model"):WaitForChild("Model"):WaitForChild("Part"),
+				Position = vector.create(-204.5826873779297, 251.2949981689453, -212.6611785888672)
+			}
+		},
+		{
+			{
+				Normal = Vector3.yAxis,
+				Instance = workspace:WaitForChild("Map"):WaitForChild("Tiles"):WaitForChild("GunShopTile"):WaitForChild("PatriotWeapons"):WaitForChild("Exterior"):WaitForChild("Structure"):WaitForChild("Floor"):WaitForChild("Part"),
+				Position = vector.create(-204.70819091796875, 251.3679656982422, -212.68743896484375)
+			},
+			{
+				Normal = Vector3.yAxis,
+				Instance = workspace:WaitForChild("Map"):WaitForChild("Sewers"):WaitForChild("Model"):WaitForChild("Model"):WaitForChild("Part"),
+				Position = vector.create(-204.80043029785156, 251.2949981689453, -212.5128936767578)
+			}
+		}
+	}
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Send"):FireServer(unpack(args))
+
+นี่ครับผมดักค่ากระสุนมาเเล้ว
