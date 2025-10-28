@@ -1,0 +1,118 @@
+-- ==================== SILENT AIM + FOV 150 ล็อกกลางจอ (มือถือ) - เปิดทันที! ====================
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+local Send = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Send")
+
+-- ตั้งค่า: เปิดทันที ไม่ต้องแตะ ไม่ต้องกด
+local FOV_RADIUS = 150
+local SHOW_FOV = true
+local SilentAimEnabled = true  -- เปิดทันที
+local CurrentTarget = nil
+
+-- รายชื่อปืนที่รองรับ
+local SUPPORTED_GUNS = {
+    "P226", "MP5", "M24", "Draco", "Glock", "Sawnoff", "Uzi", "G3", "C9",
+    "Hunting Rifle", "Anaconda", "AK47", "Remington", "Double Barrel"
+}
+
+-- วงกลม FOV ล็อกกลางจอ
+local fovCircle = Drawing.new("Circle")
+fovCircle.Radius = FOV_RADIUS
+fovCircle.Color = Color3.fromRGB(0, 255, 0)  -- เขียว = เปิด
+fovCircle.Thickness = 2
+fovCircle.Filled = false
+fovCircle.Transparency = 0.8
+
+-- ล็อกกลางจอทุกเฟรม
+RunService.RenderStepped:Connect(function()
+    local centerX = Camera.ViewportSize.X / 2
+    local centerY = Camera.ViewportSize.Y / 2
+    fovCircle.Position = Vector2.new(centerX, centerY)
+    fovCircle.Visible = SHOW_FOV
+end)
+
+-- ตรวจว่าใน FOV หรือไม่
+local function IsInFOV(worldPos)
+    local screenPos, onScreen = Camera:WorldToViewportPoint(worldPos)
+    if not onScreen then return false end
+    local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    return (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude <= FOV_RADIUS
+end
+
+-- หาเป้าหมายใน FOV ใกล้สุด
+local function GetClosestInFOV()
+    local closest = nil
+    local closestDist = math.huge
+    local myHead = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Head")
+    if not myHead then return nil end
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+            local head = player.Character.Head
+            if IsInFOV(head.Position) then
+                local dist = (head.Position - myHead.Position).Magnitude
+                if dist < closestDist then
+                    closestDist = dist
+                    closest = player
+                end
+            end
+        end
+    end
+    return closest
+end
+
+-- อัปเดตเป้าหมายทุกเฟรม
+RunService.Heartbeat:Connect(function()
+    if SilentAimEnabled then
+        CurrentTarget = GetClosestInFOV()
+    else
+        CurrentTarget = nil
+    end
+end)
+
+-- ตรวจสอบปืน
+local function IsSupportedGun(gun)
+    if not gun then return false end
+    local name = typeof(gun) == "Instance" and gun.Name or tostring(gun)
+    return table.find(SUPPORTED_GUNS, name) ~= nil
+end
+
+-- Hook FireServer
+local oldFire
+oldFire = hookfunction(Send.FireServer, function(self, ...)
+    local args = {...}
+
+    if SilentAimEnabled and #args >= 5 and args[2] == "shoot_gun" then
+        if IsSupportedGun(args[3]) and CurrentTarget and CurrentTarget.Character then
+            local targetHead = CurrentTarget.Character:FindFirstChild("Head")
+            local myHead = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Head")
+            if targetHead and myHead then
+                local aimPos = targetHead.Position
+
+                args[4] = CFrame.new(myHead.Position, aimPos)
+                args[5] = {
+                    {
+                        {
+                            Normal = (aimPos - myHead.Position).Unit,
+                            Instance = targetHead,
+                            Position = aimPos
+                        }
+                    }
+                }
+            end
+        end
+    end
+
+    return oldFire(self, unpack(args))
+end)
+
+-- แจ้งสถานะทันที
+print("SILENT AIM เปิดทันที!")
+print("FOV 150 ล็อกกลางจอ | วงกลมเขียว = ทำงาน")
+print("ยิงปืนในลิสต์ → โดนหัวคนในวงกลมอัตโนมัติ")
