@@ -1,0 +1,231 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+local originalGravity = workspace.Gravity or 196.2
+
+-- ตัวแปรสถานะ
+local flyUnderEnabled = false
+local underWorldEnabled = false
+local upsideDownEnabled = false
+local flyConnection
+local noclipConn
+local flySpeed = 50  -- ความเร็วบิน
+
+-- ฟังก์ชันรอตัวละคร
+local function waitForCharacter()
+    if not player.Character then player.CharacterAdded:Wait() end
+    local char = player.Character
+    char:WaitForChild("HumanoidRootPart", 5)
+    char:WaitForChild("Humanoid", 5)
+    if not char:FindFirstChild("HumanoidRootPart") or not char:FindFirstChild("Humanoid") then
+        warn("Error: ไม่พบ HumanoidRootPart หรือ Humanoid")
+        return nil
+    end
+    return char
+end
+
+-- ปิด Fly และ Noclip (ใช้เมื่อจำเป็น)
+local function disableFlyAndNoclip()
+    if flyConnection then flyConnection:Disconnect(); flyConnection = nil end
+    local char = player.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        local bv = char.HumanoidRootPart:FindFirstChild("FlyVelocity")
+        if bv then bv:Destroy() end
+    end
+    if noclipConn then noclipConn:Disconnect(); noclipConn = nil end
+end
+
+-- โหมดบินใต้พื้น (-10 หน่วย + Noclip + Fly)
+local function toggleFlyUnder()
+    flyUnderEnabled = not flyUnderEnabled
+    local char = waitForCharacter()
+    if not char then warn("Error: ไม่พบตัวละคร"); return end
+    local root = char.HumanoidRootPart
+    local humanoid = char.Humanoid
+    
+    if flyUnderEnabled then
+        root.CFrame = root.CFrame + Vector3.new(0, -10, 0)  -- ลง -10 หน่วย
+        noclipConn = RunService.Stepped:Connect(function()
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then part.CanCollide = false end
+            end
+        end)
+        workspace.Gravity = upsideDownEnabled and -originalGravity or 0
+        local bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.Name = "FlyVelocity"
+        bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+        bodyVelocity.Parent = root
+        flyConnection = RunService.RenderStepped:Connect(function()
+            local moveDir = humanoid.MoveDirection
+            local cam = workspace.CurrentCamera
+            local vel = cam.CFrame:VectorToWorldSpace(moveDir * flySpeed)
+            bodyVelocity.Velocity = Vector3.new(vel.X, 0, vel.Z)
+        end)
+        print("บินใต้พื้น: เปิด (-10 หน่วย + Noclip + Fly)")
+    else
+        disableFlyAndNoclip()
+        workspace.Gravity = upsideDownEnabled and -originalGravity or originalGravity
+        print("บินใต้พื้น: ปิด")
+    end
+end
+
+-- โหมดใต้โลก (-3 หน่วย + Noclip)
+local function toggleUnderWorld()
+    underWorldEnabled = not underWorldEnabled
+    local char = waitForCharacter()
+    if not char then warn("Error: ไม่พบตัวละคร"); return end
+    local root = char.HumanoidRootPart
+    if underWorldEnabled then
+        root.CFrame = root.CFrame + Vector3.new(0, -3, 0)  -- ลง -3 หน่วย
+        if not noclipConn then
+            noclipConn = RunService.Stepped:Connect(function()
+                for _, part in pairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") then part.CanCollide = false end
+                end
+            end)
+        end
+        print("ใต้โลก: เปิด (-3 หน่วย + Noclip)")
+    else
+        root.CFrame = root.CFrame + Vector3.new(0, 3, 0)
+        if not flyUnderEnabled then
+            disableFlyAndNoclip()
+        end
+        print("ใต้โลก: ปิด")
+    end
+end
+
+-- โหมดกลับหัว
+local function toggleUpsideDown()
+    upsideDownEnabled = not upsideDownEnabled
+    if upsideDownEnabled then
+        workspace.Gravity = -originalGravity
+        print("กลับหัว: เปิด")
+    else
+        workspace.Gravity = flyUnderEnabled and 0 or originalGravity
+        print("กลับหัว: ปิด")
+    end
+end
+
+-- UI สำหรับมือถือ
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "FlyUnderGUI"
+screenGui.ResetOnSpawn = false
+screenGui.IgnoreGuiInset = true
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 280, 0, 180)
+frame.Position = UDim2.new(0, 10, 0, 100)
+frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+frame.BorderSizePixel = 2
+frame.BorderColor3 = Color3.fromRGB(0, 255, 0)
+frame.Parent = screenGui
+
+-- ลาก UI
+local dragging, dragStart, startPos
+frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
+    end
+end)
+frame.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.Touch then
+        local delta = input.Position - dragStart
+        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+frame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then dragging = false end
+end)
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 40)
+title.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+title.Text = "ควบคุมโหมด"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextScaled = true
+title.Font = Enum.Font.SourceSansBold
+title.Parent = frame
+
+local flyUnderBtn = Instance.new("TextButton")
+flyUnderBtn.Size = UDim2.new(1, -20, 0, 40)
+flyUnderBtn.Position = UDim2.new(0, 10, 0, 50)
+flyUnderBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+flyUnderBtn.Text = "บินใต้พื้น: ON"
+flyUnderBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+flyUnderBtn.TextScaled = true
+flyUnderBtn.Font = Enum.Font.SourceSansBold
+flyUnderBtn.Parent = frame
+
+local underBtn = Instance.new("TextButton")
+underBtn.Size = UDim2.new(1, -20, 0, 40)
+underBtn.Position = UDim2.new(0, 10, 0, 95)
+underBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+underBtn.Text = "ใต้โลก: OFF"
+underBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+underBtn.TextScaled = true
+underBtn.Font = Enum.Font.SourceSansBold
+underBtn.Parent = frame
+
+local upsideBtn = Instance.new("TextButton")
+upsideBtn.Size = UDim2.new(1, -20, 0, 40)
+upsideBtn.Position = UDim2.new(0, 10, 0, 140)
+upsideBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+upsideBtn.Text = "กลับหัว: OFF"
+upsideBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+upsideBtn.TextScaled = true
+upsideBtn.Font = Enum.Font.SourceSansBold
+upsideBtn.Parent = frame
+
+-- Event ปุ่ม
+flyUnderBtn.Activated:Connect(function()
+    toggleFlyUnder()
+    flyUnderBtn.Text = flyUnderEnabled and "บินใต้พื้น: ON" or "บินใต้พื้น: OFF"
+    flyUnderBtn.BackgroundColor3 = flyUnderEnabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    flyUnderBtn.TextColor3 = flyUnderEnabled and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(255, 255, 255)
+end)
+
+underBtn.Activated:Connect(function()
+    toggleUnderWorld()
+    underBtn.Text = underWorldEnabled and "ใต้โลก: ON" or "ใต้โลก: OFF"
+    underBtn.BackgroundColor3 = underWorldEnabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    underBtn.TextColor3 = underWorldEnabled and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(255, 255, 255)
+end)
+
+upsideBtn.Activated:Connect(function()
+    toggleUpsideDown()
+    upsideBtn.Text = upsideDownEnabled and "กลับหัว: ON" or "กลับหัว: OFF"
+    upsideBtn.BackgroundColor3 = upsideDownEnabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    upsideBtn.TextColor3 = upsideDownEnabled and Color3.fromRGB(0, 0, 0) or Color3.fromRGB(255, 255, 255)
+end)
+
+-- รีเซ็ตเมื่อ respawn
+player.CharacterAdded:Connect(function()
+    disableFlyAndNoclip()
+    flyUnderEnabled = false
+    underWorldEnabled = false
+    upsideDownEnabled = false
+    workspace.Gravity = originalGravity
+    flyUnderBtn.Text = "บินใต้พื้น: OFF"
+    flyUnderBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    flyUnderBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    underBtn.Text = "ใต้โลก: OFF"
+    underBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    underBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    upsideBtn.Text = "กลับหัว: OFF"
+    upsideBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    upsideBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    -- เริ่มโหมดบินใต้พื้นใหม่
+    flyUnderEnabled = true
+    toggleFlyUnder()
+end)
+
+-- เริ่มโหมดบินใต้พื้นทันที
+print("สคริปต์โหลดแล้ว! เริ่มบินใต้พื้น -10 หน่วย...")
+flyUnderEnabled = true
+toggleFlyUnder()
+print("✅ บินใต้พื้น -10 หน่วย พร้อม! ใช้จอยสติ๊กเคลื่อนที่ ลาก UI ได้")
