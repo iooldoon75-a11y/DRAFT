@@ -1,0 +1,176 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+
+-- ส่วนที่ 1: เก็บไอเท็มระยะไกล
+-- การตั้งค่าระยะและความเร็ว
+local DETECTION_RANGE = 17 -- ระยะตรวจจับไอเท็ม 17 หน่วย (ปรับตามคำขอ)
+local MAGNET_SPEED = 900 -- ความเร็วที่ไอเท็มถูกดูด
+local PICKUP_ZONE_SIZE = 17 -- ขนาดของ PickUpZone
+
+-- ฟังก์ชันปรับขนาด PickUpZone
+local function adjustPickUpZone(instance)
+    local pickUpZone = instance:FindFirstChild("PickUpZone")
+    if pickUpZone and pickUpZone:IsA("BasePart") then
+        pickUpZone.Size = Vector3.new(PICKUP_ZONE_SIZE, PICKUP_ZONE_SIZE, PICKUP_ZONE_SIZE)
+        pickUpZone.CanCollide = false
+        pickUpZone.Transparency = 1
+    end
+end
+
+-- ฟังก์ชันดูดและเก็บไอเท็ม
+local function handleItem(item)
+    local character = LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then
+        return -- ออกถ้าตัวละครหรือ HumanoidRootPart ไม่มี
+    end
+    local targetPos = character.HumanoidRootPart.Position
+    local currentPos = item:GetPivot().Position
+    local distance = (targetPos - currentPos).Magnitude
+    if distance <= DETECTION_RANGE then
+        -- ดูดไอเท็ม
+        local direction = (targetPos - currentPos).Unit * MAGNET_SPEED * 0.0000000000001
+        item:PivotTo(item:GetPivot() + direction)
+        -- เก็บไอเท็ม
+        local remote = ReplicatedStorage:FindFirstChild("pickup_dropped_item")
+        if remote then
+            remote:FireServer(item)
+        else
+            warn("ไม่พบ Remote Event: pickup_dropped_item")
+        end
+    end
+end
+
+-- ตรวจจับไอเท็มใน Workspace
+RunService.Heartbeat:Connect(function()
+    for _, item in pairs(workspace:GetChildren()) do
+        if item:FindFirstChild("PickUpZone") then
+            adjustPickUpZone(item)
+            handleItem(item)
+        end
+    end
+end)
+
+-- ตรวจจับไอเท็มที่เพิ่มเข้ามาใหม่
+workspace.DescendantAdded:Connect(function(instance)
+    if instance.Name == "PickUpZone" then
+        adjustPickUpZone(instance.Parent)
+    end
+end)
+
+-- ส่วนที่ 2: Body Collapse to Legs + GUI
+-- สร้าง GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "BodyCollapseGUI"
+screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+screenGui.ResetOnSpawn = false -- ป้องกัน GUI หายเมื่อตัวละครเกิดใหม่
+
+-- Frame หลัก
+local frame = Instance.new("Frame")
+frame.Parent = screenGui
+frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+frame.BorderSizePixel = 0
+frame.Position = UDim2.new(0, 10, 0, 10)
+frame.Size = UDim2.new(0, 200, 0, 80)
+frame.Active = true
+frame.Draggable = true
+
+-- Title
+local title = Instance.new("TextLabel")
+title.Parent = frame
+title.BackgroundTransparency = 1
+title.Size = UDim2.new(1, 0, 0, 30)
+title.Font = Enum.Font.SourceSansBold
+title.Text = "หัวตัวแขนรวมขา"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextSize = 16
+
+-- Toggle Button
+local toggleButton = Instance.new("TextButton")
+toggleButton.Parent = frame
+toggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+toggleButton.BorderSizePixel = 0
+toggleButton.Position = UDim2.new(0, 10, 0, 40)
+toggleButton.Size = UDim2.new(0, 180, 0, 30)
+toggleButton.Font = Enum.Font.SourceSans
+toggleButton.Text = "เปิด"
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.TextSize = 14
+
+-- Corner (โค้งมน)
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 8)
+corner.Parent = frame
+local cornerButton = Instance.new("UICorner")
+cornerButton.CornerRadius = UDim.new(0, 8)
+cornerButton.Parent = toggleButton
+
+-- ตัวแปรสถานะ
+local collapsed = false
+
+-- ฟังก์ชันรวมร่างกาย
+local function collapseBody()
+    local character = LocalPlayer.Character
+    if character then
+        for _, part in pairs(character:GetChildren()) do
+            if part:IsA("BasePart") and (
+                part.Name == "Head" or 
+                part.Name == "Torso" or 
+                part.Name == "UpperTorso" or
+                part.Name == "LowerTorso" or
+                part.Name:find("Arm") or
+                part.Name:find("Hand")
+            ) then
+                part.CFrame = character.HumanoidRootPart.CFrame + Vector3.new(0, -3, 0)
+                part.Anchored = true
+                part.CanCollide = false
+            end
+        end
+    end
+end
+
+-- ฟังก์ชันกลับปกติ
+local function restoreBody()
+    local character = LocalPlayer.Character
+    if character then
+        for _, part in pairs(character:GetChildren()) do
+            if part:IsA("BasePart") then
+                part.Anchored = false
+                part.CanCollide = true
+            end
+        end
+    end
+end
+
+-- กดปุ่ม Toggle
+toggleButton.MouseButton1Click:Connect(function()
+    collapsed = not collapsed
+    
+    if collapsed then
+        collapseBody()
+        toggleButton.Text = "ปิด"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+        print("หัวตัวแขนรวมขา: เปิด")
+    else
+        restoreBody()
+        toggleButton.Text = "เปิด"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+        print("หัวตัวแขนรวมขา: ปิด")
+    end
+end)
+
+-- รองรับ Respawn
+LocalPlayer.CharacterAdded:Connect(function()
+    wait(1) -- รอให้ตัวละครโหลดเสร็จ
+    if collapsed then
+        collapseBody()
+    end
+end)
+
+-- แจ้งว่าโหลดสคริปต์สำเร็จ
+print("=== Long Range Item Pickup (17 Units) + Body Collapse GUI LOADED ===")
+print("ลาก GUI ได้ | คลิกปุ่มเปิด/ปิด | เก็บไอเท็มระยะ 17 หน่วย")
+
+
