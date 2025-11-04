@@ -1,0 +1,149 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- === GUI ปุ่ม ===
+local gui = Instance.new("ScreenGui")
+gui.ResetOnSpawn = false
+gui.Parent = PlayerGui
+
+local btn = Instance.new("TextButton")
+btn.Size = UDim2.new(0, 110, 0, 110)
+btn.Position = UDim2.new(0, 10, 0.5, -55)
+btn.BackgroundColor3 = Color3.fromRGB(220, 0, 0)
+btn.Text = "OFF"
+btn.TextColor3 = Color3.new(1,1,1)
+btn.TextScaled = true
+btn.Font = Enum.Font.GothamBold
+btn.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 30)
+corner.Parent = btn
+
+-- === ตัวแปร ===
+local Character, Head, RootPart, Humanoid
+local ENABLED = false
+local LastDodge = 0
+local DODGE_COOLDOWN = 0.005  -- หลบถี่สุด (BlockSpin เร็ว)
+local DETECT_RANGE = 900
+local IS_DODGING = false
+
+-- === 1. ทำให้หัว "หายจาก Raycast" 100% ===
+local function makeHeadInvisible()
+	if not Head then return end
+	Head.Size = Vector3.new(0.00001, 0.00001, 0.00001)  -- เล็กสุด
+	Head.Transparency = 1
+	Head.CanCollide = false
+	Head.Massless = true
+	Head.Material = Enum.Material.ForceField
+	Head:SetNetworkOwner(LocalPlayer)  -- Client ควบคุมเต็ม
+end
+
+-- === 2. ตรวจจับคนเล็ง (ก่อนยิง) ===
+local function detectAimingAtMe()
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player == LocalPlayer then continue end
+		local char = player.Character
+		if not char then continue end
+		local head = char:FindFirstChild("Head")
+		local hum = char:FindFirstChild("Humanoid")
+		local tool = char:FindFirstChildWhichIsA("Tool")
+		if not head or not hum or hum.Health <= 0 or not tool then continue end
+
+		local dirToMe = (Head.Position - head.Position)
+		if dirToMe.Magnitude > 80 then continue end
+
+		local lookDir = head.CFrame.LookVector
+		if lookDir:Dot(dirToMe.Unit) > 0.85 then  -- เล็งตรง
+			return true, player
+		end
+	end
+	return false
+end
+
+-- === 3. หลบอัตโนมัติ (ก่อนยิง) ===
+local function autoDodge()
+	if IS_DODGING or tick() - LastDodge < DODGE_COOLDOWN then return end
+
+	local isAiming = detectAimingAtMe()
+	if isAiming then
+		-- หลบข้าง + หมุนตัว (GTA Style)
+		local side = math.random() > 0.1 and 1 or -1
+		RootPart.AssemblyLinearVelocity = RootPart.CFrame.RightVector * side * 80
+		RootPart.CFrame = RootPart.CFrame * CFrame.Angles(0, math.rad(45 * side), 0)
+		Humanoid.Jump = true
+		IS_DODGING = true
+		LastDodge = tick()
+
+		-- รีเซ็ตหลัง 0.2 วินาที
+		task.delay(0.2, function()
+			IS_DODGING = false
+		end)
+	end
+end
+
+-- === 4. ป้องกันกระสุน (กรณี Hitscan เร็ว) ===
+local function blockProjectiles()
+	for _, obj in ipairs(workspace:GetChildren()) do
+		if obj:IsA("BasePart") and (
+			obj.Name:find("Bullet") or obj.Name:find("Rocket") or 
+			obj.Name:find("Arrow") or obj:GetAttribute("IsProjectile")
+		) then
+			local vel = obj.AssemblyLinearVelocity
+			if vel.Magnitude < 400 then continue end
+
+			local dist = (obj.Position - Head.Position).Magnitude
+			if dist < 15 then
+				-- ผลักกระสุนออก
+				obj.Velocity = (obj.Position - Head.Position).Unit * 5000
+				obj.AssemblyLinearVelocity = obj.Velocity
+			end
+		end
+	end
+end
+
+-- === ฟังก์ชันหลัก ===
+local function protect()
+	if not ENABLED or not Character then return end
+	makeHeadInvisible()
+	autoDodge()
+	blockProjectiles()
+end
+
+-- === ปุ่ม ===
+btn.MouseButton1Click:Connect(function()
+	ENABLED = not ENABLED
+	if ENABLED then
+		btn.Text = "ON"
+		btn.BackgroundColor3 = Color3.fromRGB(0, 220, 0)
+	else
+		btn.Text = "OFF"
+		btn.BackgroundColor3 = Color3.fromRGB(220, 0, 0)
+		-- รีเซ็ตหัว
+		if Head then
+			Head.Size = Vector3.new(2, 1, 1)
+			Head.Transparency = 0
+			Head.CanCollide = true
+			Head.Massless = false
+			Head.Material = Enum.Material.SmoothPlastic
+			Head:SetNetworkOwner(nil)
+		end
+	end
+end)
+
+-- === โหลดตัวละคร ===
+LocalPlayer.CharacterAdded:Connect(function(char)
+	Character = char
+	RootPart = char:WaitForChild("HumanoidRootPart")
+	Head = char:WaitForChild("Head")
+	Humanoid = char:WaitForChild("Humanoid")
+end)
+
+if LocalPlayer.Character then
+	Character = LocalPlayer.Character
+	RootPart = Character:FindFirstChild("HumanoidRootPart")
+	Head = Character:FindFirstChild("Head")
+	Humanoid = Character:FindFirstChild("Humanoid")
+end
