@@ -1,0 +1,618 @@
+--// โหลด WindUI
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+--// สร้างหน้าต่าง
+local Window = WindUI:CreateWindow({
+    Title = "My DAF",
+    Icon = "door-open",
+    Author = "by .ftgs and .ftgs",
+    Folder = "MySuperHub",
+    Size = UDim2.fromOffset(580, 460),
+    MinSize = Vector2.new(560, 350),
+    MaxSize = Vector2.new(850, 560),
+    Transparent = true,
+    Theme = "Dark",
+    Resizable = true,
+    SideBarWidth = 200,
+    BackgroundImageTransparency = 0.42,
+    HideSearchBar = true,
+    ScrollBarEnabled = false,
+})
+
+--// Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+
+--// ตัวแปรควบคุม
+local SilentAimEnabled = false
+local SpeedEnabled = false
+local JumpEnabled = false
+local ItemESPEnabled = false
+local ItemMagnetEnabled = false
+local HealthBarEnabled = false
+local SinkEnabled = false
+local DanceEnabled = false
+
+local FOV = 150
+local PREDICTION_FACTOR = 0.165
+local DETECTION_RANGE = 17
+local MAGNET_SPEED = 20
+local PICKUP_ZONE_SIZE = 17
+
+--// Gun List
+local GunNames = {
+    "P226","MP5","M24","Draco","Glock","Sawnoff","Uzi","G3","C9",
+    "Hunting Rifle","Anaconda","AK47","Remington","Double Barrel"
+}
+local GunLookup = {}
+for _, name in pairs(GunNames) do GunLookup[name] = true end
+
+--// Drawing (Aimbot)
+local fovCircle = Drawing.new("Circle")
+fovCircle.Color = Color3.new(1,1,1)
+fovCircle.Thickness = 2
+fovCircle.NumSides = 100
+fovCircle.Radius = FOV
+fovCircle.Filled = false
+fovCircle.Visible = false
+
+local tracerLine = Drawing.new("Line")
+tracerLine.Color = Color3.new(1,0,0)
+tracerLine.Thickness = 2
+tracerLine.Visible = false
+
+--// ESP & Health Bar Objects
+local espObjects = {}
+local healthBars = {}
+
+--// Dance Animation
+local currentDanceTrack = nil
+local ANIM_ID = "rbxassetid://104767795538635"
+
+--// === AIMBOT (Team Check + Dead Check) ===
+local function GetClosestTarget()
+    local closest, shortest = nil, math.huge
+    local center = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+    local myTeam = LocalPlayer.Team
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local character = player.Character
+            if character and character:FindFirstChild("Head") then
+                local humanoid = character:FindFirstChild("Humanoid")
+                if humanoid and humanoid.Health > 0 then
+                    if not myTeam or player.Team ~= myTeam then
+                        local screenPos, onScreen = Camera:WorldToViewportPoint(character.Head.Position)
+                        if onScreen then
+                            local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+                            if dist < FOV and dist < shortest then
+                                shortest = dist
+                                closest = player
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return closest
+end
+
+local function PredictPosition(headPart)
+    local root = headPart.Parent:FindFirstChild("HumanoidRootPart")
+    if not root then return headPart.Position end
+    local velocity = root.Velocity
+    local prediction = headPart.Position + (velocity * PREDICTION_FACTOR)
+    local seat = root:FindFirstChildWhichIsA("WeldConstraint") or root:FindFirstChildWhichIsA("Weld")
+    if seat and seat.Part0 then
+        prediction = headPart.Position + (seat.Part0.Velocity * PREDICTION_FACTOR * 1.2)
+    end
+    return prediction
+end
+
+local function IsHoldingAllowedGun(args)
+    local ok, weapon = pcall(function() return args[3] end)
+    if ok and typeof(weapon) == "Instance" and GunLookup[weapon.Name] then
+        return true
+    end
+    for _, child in pairs(LocalPlayer.Character:GetChildren()) do
+        if (child:IsA("Tool") or child:IsA("Model")) and GunLookup[child.Name] then
+            return true
+        end
+    end
+    return false
+end
+
+-- Hook FireServer
+local send = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Send")
+local oldFire
+oldFire = hookfunction(send.FireServer, function(self, ...)
+    local args = {...}
+    if SilentAimEnabled and IsHoldingAllowedGun(args) then
+        local target = GetClosestTarget()
+        if target and target.Character and target.Character:FindFirstChild("Head") then
+            local head = target.Character.Head
+            local humanoid = target.Character:FindFirstChild("Humanoid")
+            local myTeam = LocalPlayer.Team
+            if humanoid and humanoid.Health > 0 and (not myTeam or target.Team ~= myTeam) then
+                local aimPos = PredictPosition(head)
+                args[4] = CFrame.new(1/0,1/0,1/0,0/0,0/0,0/0,0/0,0/0,0/0,0/0,0/0,0/0)
+                args[5] = {[1]={[1]={["Instance"]=head,["Position"]=aimPos}}}
+            end
+        end
+    end
+    return oldFire(self, unpack(args))
+end)
+
+-- Aimbot Render
+RunService.RenderStepped:Connect(function()
+    if not SilentAimEnabled then
+        fovCircle.Visible = false
+        tracerLine.Visible = false
+        return
+    end
+
+    fovCircle.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+    fovCircle.Radius = FOV
+    fovCircle.Visible = true
+
+    local target = GetClosestTarget()
+    if target and target.Character and target.Character:FindFirstChild("Head") then
+        local predictedPos = PredictPosition(target.Character.Head)
+        local screenPos, onScreen = Camera:WorldToViewportPoint(predictedPos)
+        if onScreen then
+            local ourHead = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Head")
+            if ourHead then
+                local screenStart, startOnScreen = Camera:WorldToViewportPoint(ourHead.Position)
+                if startOnScreen then
+                    tracerLine.From = Vector2.new(screenStart.X, screenStart.Y)
+                    tracerLine.To = Vector2.new(screenPos.X, screenPos.Y)
+                    tracerLine.Visible = true
+                else
+                    tracerLine.Visible = false
+                end
+            else
+                tracerLine.Visible = false
+            end
+        else
+            tracerLine.Visible = false
+        end
+    else
+        tracerLine.Visible = false
+    end
+end)
+
+--// === SPEED + JUMP ===
+local function ApplySpeed()
+    if not LocalPlayer.Character then return end
+    local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
+    if humanoid then
+        humanoid.WalkSpeed = 34
+        pcall(function() LocalPlayer:SetAttribute("SpeedMultiplier", 1.400) end)
+    end
+end
+
+local function RemoveSpeed()
+    if not LocalPlayer.Character then return end
+    local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
+    if humanoid then
+        humanoid.WalkSpeed = 16
+        pcall(function() LocalPlayer:SetAttribute("SpeedMultiplier", 1) end)
+    end
+end
+
+--// === SINK (มุดเก็บของ) ===
+local heightOffset = -3
+local sinkConnection
+
+local function UpdateSink()
+    if not LocalPlayer.Character then return end
+    local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if hrp and SinkEnabled then
+        hrp.CFrame = CFrame.new(hrp.Position.X, hrp.Position.Y + heightOffset, hrp.Position.Z)
+    end
+end
+
+local function EnableSink()
+    if sinkConnection then return end
+    sinkConnection = RunService.RenderStepped:Connect(UpdateSink)
+end
+
+local function DisableSink()
+    if sinkConnection then
+        sinkConnection:Disconnect()
+        sinkConnection = nil
+    end
+end
+
+--// === DANCE ===
+local function PlayDance()
+    if not LocalPlayer.Character then return end
+    local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
+    if not humanoid then return end
+    
+    if currentDanceTrack then
+        currentDanceTrack:Stop()
+        currentDanceTrack:Destroy()
+    end
+    
+    local anim = Instance.new("Animation")
+    anim.AnimationId = ANIM_ID
+    
+    currentDanceTrack = humanoid:LoadAnimation(anim)
+    currentDanceTrack.Looped = true
+    currentDanceTrack:Play()
+end
+
+local function StopDance()
+    if currentDanceTrack then
+        currentDanceTrack:Stop()
+        currentDanceTrack:Destroy()
+        currentDanceTrack = nil
+    end
+end
+
+--// === ITEM ESP ===
+local function getRealItemName(item)
+    for _, child in pairs(item:GetChildren()) do
+        if child:IsA("StringValue") and (child.Name:find("Name") or child.Name:find("display")) then
+            return child.Value
+        end
+    end
+    local attrName = item:GetAttribute("DisplayName") or item:GetAttribute("Name") or item.Name
+    if attrName ~= "" then return attrName end
+    return item.Name
+end
+
+local function createESP(part)
+    if espObjects[part] then return end
+    local realName = getRealItemName(part.Parent or part)
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "ItemESP"
+    billboard.Parent = part
+    billboard.Size = UDim2.new(0, 75, 0, 38)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.AlwaysOnTop = true
+    billboard.LightInfluence = 0
+    billboard.Adornee = part
+
+    local text = Instance.new("TextLabel")
+    text.Parent = billboard
+    text.Size = UDim2.new(1, 0, 1, 0)
+    text.BackgroundTransparency = 1
+    text.Text = realName
+    text.TextColor3 = Color3.fromRGB(0, 255, 100)
+    text.TextStrokeTransparency = 0
+    text.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    text.TextScaled = true
+    text.Font = Enum.Font.GothamBold
+
+    local highlight = Instance.new("Highlight")
+    highlight.Parent = part
+    highlight.FillColor = Color3.fromRGB(0, 255, 100)
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.FillTransparency = 0.7
+    highlight.OutlineTransparency = 0.3
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+
+    espObjects[part] = {billboard, highlight}
+end
+
+local function removeESP(part)
+    if espObjects[part] then
+        for _, obj in pairs(espObjects[part]) do obj:Destroy() end
+        espObjects[part] = nil
+    end
+end
+
+local function scanAllItems()
+    local droppedFolder = Workspace:FindFirstChild("DroppedItems")
+    if droppedFolder then
+        for _, item in pairs(droppedFolder:GetChildren()) do
+            local handle = item:FindFirstChild("Handle") or item
+            if handle and handle:IsA("BasePart") then
+                createESP(handle)
+            end
+        end
+    end
+end
+
+local function initESP()
+    local folder = Workspace:FindFirstChild("DroppedItems")
+    if folder then
+        folder.ChildAdded:Connect(function(child)
+            task.wait(0.1)
+            local handle = child:FindFirstChild("Handle") or child
+            if handle and handle:IsA("BasePart") then createESP(handle) end
+        end)
+        folder.ChildRemoved:Connect(function(child)
+            local handle = child:FindFirstChild("Handle") or child
+            removeESP(handle)
+        end)
+        scanAllItems()
+    else
+        Workspace.ChildAdded:Connect(function(child)
+            if child.Name == "DroppedItems" then
+                task.wait(1)
+                initESP()
+            end
+        end)
+    end
+end
+
+--// === ITEM MAGNET ===
+local function adjustPickUpZone(instance)
+    local pickUpZone = instance:FindFirstChild("PickUpZone")
+    if pickUpZone and pickUpZone:IsA("BasePart") then
+        pickUpZone.Size = Vector3.new(PICKUP_ZONE_SIZE, PICKUP_ZONE_SIZE, PICKUP_ZONE_SIZE)
+        pickUpZone.CanCollide = false
+        pickUpZone.Transparency = 1
+    end
+end
+
+local function handleItem(item)
+    local character = LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+    local targetPos = character.HumanoidRootPart.Position
+    local currentPos = item:GetPivot().Position
+    local distance = (targetPos - currentPos).Magnitude
+    if distance <= DETECTION_RANGE then
+        local direction = (targetPos - currentPos).Unit * MAGNET_SPEED * 0.1
+        item:PivotTo(item:GetPivot() + direction)
+        local remote = ReplicatedStorage:FindFirstChild("pickup_dropped_item")
+        if remote then remote:FireServer(item) end
+    end
+end
+
+RunService.Heartbeat:Connect(function()
+    if not ItemMagnetEnabled then return end
+    for _, item in pairs(Workspace:GetChildren()) do
+        if item:FindFirstChild("PickUpZone") then
+            adjustPickUpZone(item)
+            handleItem(item)
+        end
+    end
+end)
+
+Workspace.DescendantAdded:Connect(function(instance)
+    if instance.Name == "PickUpZone" then
+        adjustPickUpZone(instance.Parent)
+    end
+end)
+
+--// === HEALTH BAR ===
+local function createHealthBar(character, player)
+    if not HealthBarEnabled then return end
+    if healthBars[character] then return end
+
+    local head = character:FindFirstChild("Head")
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not head or not humanoid then return end
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "HealthBar"
+    billboard.Size = UDim2.new(0, 80, 0, 20)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Parent = head
+
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Size = UDim2.new(1, 0, 0.6, 0)
+    nameLabel.Position = UDim2.new(0, 0, -0.9, 0)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Text = player.DisplayName or player.Name
+    nameLabel.TextScaled = true
+    nameLabel.Font = Enum.Font.SourceSansBold
+    nameLabel.TextColor3 = Color3.new(1, 1, 1)
+    nameLabel.Parent = billboard
+
+    local background = Instance.new("Frame")
+    background.Size = UDim2.new(1, 0, 0.3, 0)
+    background.Position = UDim2.new(0, 0, 0.7, 0)
+    background.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    background.BorderSizePixel = 0
+    background.Parent = billboard
+
+    local healthBar = Instance.new("Frame")
+    healthBar.Size = UDim2.new(1, 0, 1, 0)
+    healthBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+    healthBar.BorderSizePixel = 0
+    healthBar.Parent = background
+
+    local connection
+    connection = RunService.RenderStepped:Connect(function()
+        if humanoid and humanoid.Health > 0 then
+            local health = humanoid.Health
+            local maxHealth = humanoid.MaxHealth
+            local percent = math.clamp(health / maxHealth, 0, 1)
+            healthBar.Size = UDim2.new(percent, 0, 1, 0)
+            healthBar.BackgroundColor3 = Color3.fromRGB(255 * (1 - percent), 255 * percent, 0)
+        else
+            if billboard then billboard:Destroy() end
+            if connection then connection:Disconnect() end
+            healthBars[character] = nil
+        end
+    end)
+
+    healthBars[character] = {billboard, connection}
+end
+
+local function removeAllHealthBars()
+    for character, data in pairs(healthBars) do
+        for _, obj in pairs(data) do
+            if typeof(obj) == "Instance" then obj:Destroy() end
+            if typeof(obj) == "RBXScriptConnection" then obj:Disconnect() end
+        end
+    end
+    healthBars = {}
+end
+
+local function setupPlayerHealth(player)
+    if player == LocalPlayer then return end
+    player.CharacterAdded:Connect(function(char)
+        task.wait(1)
+        createHealthBar(char, player)
+    end)
+    if player.Character then
+        createHealthBar(player.Character, player)
+    end
+end
+
+--// === RESPAWN HANDLER ===
+LocalPlayer.CharacterAdded:Connect(function(newChar)
+    task.wait(1)
+    local humanoid = newChar:WaitForChild("Humanoid", 5)
+    local hrp = newChar:WaitForChild("HumanoidRootPart", 5)
+    if not humanoid or not hrp then return end
+
+    if SpeedEnabled then ApplySpeed() end
+    if JumpEnabled then
+        humanoid.JumpPower = 23
+        humanoid.JumpHeight = 23
+    end
+    if SinkEnabled then EnableSink() end
+    if DanceEnabled then PlayDance() end
+end)
+
+--// === INIT ===
+task.spawn(initESP)
+for _, player in ipairs(Players:GetPlayers()) do
+    setupPlayerHealth(player)
+end
+Players.PlayerAdded:Connect(setupPlayerHealth)
+
+--// === UI TABS ===
+local AimbotTab = Window:Tab({ Title = "Aimbot", Icon = "bird" })
+local BodyTab = Window:Tab({ Title = "ร่างกาย", Icon = "zap" })
+local ItemTab = Window:Tab({ Title = "เกี่ยวกับของ", Icon = "package" })
+local VisualTab = Window:Tab({ Title = "มอง", Icon = "eye" })
+local UndergroundTab = Window:Tab({ Title = "ใต้ดิน", Icon = "arrow-down" })
+
+-- Aimbot
+AimbotTab:Toggle({
+    Title = "ล็อกหัว",
+    Desc = "Silent Aim + FOV + Tracer (Team Check)",
+    Icon = "target",
+    Value = false,
+    Callback = function(state)
+        SilentAimEnabled = state
+        print("ล็อกหัว: " .. (state and "เปิด" or "ปิด"))
+    end
+})
+
+-- Body
+BodyTab:Toggle({
+    Title = "วิ่ง",
+    Desc = "WalkSpeed 34 + SpeedMultiplier",
+    Icon = "zap",
+    Value = false,
+    Callback = function(state)
+        SpeedEnabled = state
+        if state then ApplySpeed() else RemoveSpeed() end
+    end
+})
+
+BodyTab:Toggle({
+    Title = "กระโดด",
+    Desc = "JumpPower 23",
+    Icon = "arrow-up",
+    Value = false,
+    Callback = function(state)
+        JumpEnabled = state
+        local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
+        if humanoid then
+            humanoid.JumpPower = state and 23 or 50
+            humanoid.JumpHeight = state and 23 or 7.2
+        end
+    end
+})
+
+-- Items
+ItemTab:Toggle({
+    Title = "ดูดของ",
+    Desc = "ดูดไอเท็มระยะ 17",
+    Icon = "magnet",
+    Value = false,
+    Callback = function(state)
+        ItemMagnetEnabled = state
+        print("ดูดของ: " .. (state and "เปิด" or "ปิด"))
+    end
+})
+
+ItemTab:Toggle({
+    Title = "มองของตก",
+    Desc = "ESP + Highlight ไอเท็ม",
+    Icon = "package",
+    Value = false,
+    Callback = function(state)
+        ItemESPEnabled = state
+        if state then
+            scanAllItems()
+        else
+            for part, objs in pairs(espObjects) do
+                for _, obj in pairs(objs) do obj:Destroy() end
+            end
+            espObjects = {}
+        end
+        print("มองของตก: " .. (state and "เปิด" or "ปิด"))
+    end
+})
+
+-- Visual
+VisualTab:Toggle({
+    Title = "ดูเลือด",
+    Desc = "Health Bar + ชื่อผู้เล่น",
+    Icon = "heart",
+    Value = false,
+    Callback = function(state)
+        HealthBarEnabled = state
+        if state then
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    createHealthBar(player.Character, player)
+                end
+            end
+        else
+            removeAllHealthBars()
+        end
+        print("ดูเลือด: " .. (state and "เปิด" or "ปิด"))
+    end
+})
+
+-- Underground
+UndergroundTab:Toggle({
+    Title = "มุดเก็บของ",
+    Desc = "จมลงใต้พื้นเพื่อเก็บของ",
+    Icon = "arrow-down",
+    Value = false,
+    Callback = function(state)
+        SinkEnabled = state
+        if state then
+            EnableSink()
+        else
+            DisableSink()
+        end
+        print("มุดเก็บของ: " .. (state and "เปิด" or "ปิด"))
+    end
+})
+
+UndergroundTab:Toggle({
+    Title = "ท่าเต้น",
+    Desc = "เต้นอัตโนมัติต่อเนื่อง",
+    Icon = "music",
+    Value = false,
+    Callback = function(state)
+        DanceEnabled = state
+        if state then
+            PlayDance()
+        else
+            StopDance()
+        end
+        print("ท่าเต้น: " .. (state and "เปิด" or "ปิด"))
+    end
+})
